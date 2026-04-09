@@ -88,6 +88,12 @@ python generate_pretendard_font.py
 - Referenced: [crosspoint-reader-ko](https://github.com/crosspoint-reader-ko/crosspoint-reader-ko) - font-path hash-based cache invalidation, SD font architecture patterns
 - CJK fork by: TrissElan
 
+## Support
+
+If you find this project useful, please consider supporting it.
+
+[![donate](https://example.com/buy-me-a-coffee.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=WFXTNDJ3LYB2U)
+
 ## License
 
 This project is licensed under the same license as the original CrossPoint Reader project.
