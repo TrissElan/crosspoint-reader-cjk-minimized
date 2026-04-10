@@ -11,11 +11,14 @@ A CJK (Korean/Japanese) font support fork of the [CrossPoint Reader](https://git
 - Font selection UI — choose between 3 built-in sizes or SD card fonts
 - Per-font section cache invalidation (djb2 hash-based font ID)
 - Flash font zero-copy optimization (~51KB RAM saved)
+- Arena-based glyph bitmap cache with cooperative memory release
 
 ## Changes from Upstream
 
 - **Font system overhaul**: Removed Bookerly font family (10/12/14/16/18pt × 4 styles), replaced with Pretendard JP 12/14/16pt embedded in Flash
-- **SdFont/SdFontFamily**: New on-demand glyph loading system for SD card fonts with LRU bitmap cache
+- **SdFont/SdFontFamily**: New on-demand glyph loading system for SD card fonts with arena-based bitmap cache
+- **Arena allocator**: 32KB bump-pointer arena with 512-entry open-addressing hash table replaces STL LRU cache, eliminating heap fragmentation on ESP32-C3 (229KB usable DRAM)
+- **Cooperative memory release**: Arena is lazily allocated and released before inflate (HTML/image decompression) and JPEG decoding, allowing the 32KB DEFLATE buffer and decoder to coexist with glyph caching
 - **FontSelectionActivity**: UI for selecting built-in font sizes and browsing `.epdfont` files from SD card
 - **WiFi file transfer**: Restored from upstream with simplified hotspot-only mode (no Join Network)
 - **Bug fixes**:
@@ -27,6 +30,9 @@ A CJK (Korean/Japanese) font support fork of the [CrossPoint Reader](https://git
   - Theme not switching (enum value alignment)
   - SD-to-SD font change not triggering re-indexing
   - Home screen Settings unreachable (menu item count off-by-one)
+  - SD font inflate reader failure due to heap fragmentation (arena cooperative release)
+  - CSS style resolution skipped due to overly conservative heap threshold (48KB → 16KB)
+  - FontSelectionActivity missing Up/Down navigation buttons and i18n
 
 ## Removed from Upstream
 
@@ -60,6 +66,7 @@ This fork is a minimal CJK-focused build. The following upstream features have b
 
 - SD card fonts consume RAM for interval tables (~51KB per font for full CJK coverage)
 - Anti-aliasing may be skipped when RAM is insufficient for BW buffer backup
+- Image decompression within EPUB may fail when heap is severely fragmented (graceful fallback — image is skipped)
 
 ## How to Build
 
