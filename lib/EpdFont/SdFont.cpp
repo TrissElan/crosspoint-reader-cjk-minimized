@@ -478,15 +478,8 @@ const EpdGlyph* SdFontData::getGlyph(uint32_t codepoint) const {
 }
 
 const uint8_t* SdFontData::getGlyphBitmap(uint32_t codepoint) const {
-  if (!loaded || sharedCache == nullptr) {
+  if (!loaded) {
     return nullptr;
-  }
-
-  // Check cache first (use composite key to avoid collisions between fonts)
-  const uint32_t cacheKey = makeCacheKey(codepoint);
-  const uint8_t* cached = sharedCache->get(cacheKey);
-  if (cached != nullptr) {
-    return cached;
   }
 
   // Find glyph index
@@ -495,7 +488,7 @@ const uint8_t* SdFontData::getGlyphBitmap(uint32_t codepoint) const {
     return nullptr;
   }
 
-  // ── Memory-resident path ───────────────────────────────────────────────
+  // ── Memory-resident path (zero-copy from Flash) ─────────────────────
   if (memData != nullptr) {
     uint32_t glyphFileOffset = header.glyphsOffset + (glyphIndex * sizeof(EpdFontGlyph));
     if (glyphFileOffset + sizeof(EpdFontGlyph) > memSize) {
@@ -511,10 +504,22 @@ const uint8_t* SdFontData::getGlyphBitmap(uint32_t codepoint) const {
     if (bitmapPos + fileGlyph.dataLength > memSize) {
       return nullptr;
     }
-    return sharedCache->put(cacheKey, memData + bitmapPos, fileGlyph.dataLength);
+    // Return direct pointer to Flash — no arena allocation needed
+    return memData + bitmapPos;
   }
 
-  // ── SD-card path ───────────────────────────────────────────────────────
+  // ── SD-card path (cached in arena) ─────────────────────────────────
+  if (sharedCache == nullptr) {
+    return nullptr;
+  }
+
+  // Check cache first (use composite key to avoid collisions between fonts)
+  const uint32_t cacheKey = makeCacheKey(codepoint);
+  const uint8_t* cached = sharedCache->get(cacheKey);
+  if (cached != nullptr) {
+    return cached;
+  }
+
   // Ensure file is open (keeps file handle open for performance)
   if (!ensureFileOpen()) {
     return nullptr;

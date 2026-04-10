@@ -10,8 +10,8 @@
 #include "activities/Activity.h"
 
 /**
- * Activity for selecting a custom font from /.crosspoint/fonts folder.
- * Lists .epdfont files and allows the user to select one.
+ * Activity for selecting the built-in font size.
+ * Lists Pretendard 12/14/16pt options.
  */
 class FontSelectionActivity final : public Activity {
  public:
@@ -36,9 +36,4 @@ class FontSelectionActivity final : public Activity {
   void doRender();
   void loadFontList();
   void handleSelection();
-
-  static constexpr const char* FONTS_DIR = "/.crosspoint/fonts";
-  static constexpr const char* ROOT_FONTS_DIR = "/fonts";
-
-  void scanFontsInDirectory(const char* dirPath);
 };

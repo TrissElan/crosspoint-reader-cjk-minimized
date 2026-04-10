@@ -30,24 +30,36 @@ MappedInputManager mappedInputManager(gpio);
 GfxRenderer renderer(display);
 ActivityManager activityManager(renderer, mappedInputManager);
 
-// Pretendard 12/14/16pt (2-bit) embedded in Flash via .incbin assembly.
+// Pretendard 10/12/14pt + KoPub Dotum 10/12/14pt (2-bit) embedded in Flash via .incbin assembly.
 // Zero-copy: intervals read directly from Flash, no RAM allocation for font data.
+extern const uint8_t _binary_pretendard_10_epdfont_start[];
+extern const uint8_t _binary_pretendard_10_epdfont_end[];
 extern const uint8_t _binary_pretendard_12_epdfont_start[];
 extern const uint8_t _binary_pretendard_12_epdfont_end[];
 extern const uint8_t _binary_pretendard_14_epdfont_start[];
 extern const uint8_t _binary_pretendard_14_epdfont_end[];
-extern const uint8_t _binary_pretendard_16_epdfont_start[];
-extern const uint8_t _binary_pretendard_16_epdfont_end[];
+
+extern const uint8_t _binary_kopub_10_epdfont_start[];
+extern const uint8_t _binary_kopub_10_epdfont_end[];
+extern const uint8_t _binary_kopub_12_epdfont_start[];
+extern const uint8_t _binary_kopub_12_epdfont_end[];
+extern const uint8_t _binary_kopub_14_epdfont_start[];
+extern const uint8_t _binary_kopub_14_epdfont_end[];
 
 // Global SdFont / SdFontFamily for each embedded size.
+SdFont* gCjkFont10 = nullptr;
+SdFontFamily* gCjkFontFamily10 = nullptr;
 SdFont* gCjkFont12 = nullptr;
 SdFontFamily* gCjkFontFamily12 = nullptr;
 SdFont* gCjkFont14 = nullptr;
 SdFontFamily* gCjkFontFamily14 = nullptr;
-SdFont* gCjkFont16 = nullptr;
-SdFontFamily* gCjkFontFamily16 = nullptr;
+SdFont* gKopubFont10 = nullptr;
+SdFontFamily* gKopubFontFamily10 = nullptr;
+SdFont* gKopubFont12 = nullptr;
+SdFontFamily* gKopubFontFamily12 = nullptr;
+SdFont* gKopubFont14 = nullptr;
+SdFontFamily* gKopubFontFamily14 = nullptr;
 
-// Custom reader font loaded from SD card by FontSelectionActivity
 #include "FontManager.h"
 
 // measurement of power button press duration calibration value
@@ -107,45 +119,6 @@ void waitForPowerRelease() {
 
 // ── FontManager implementation ─────────────────────────────────────────────
 GfxRenderer& getGlobalRenderer() { return renderer; }
-
-bool loadCustomReaderFont(GfxRenderer& gfxRenderer) {
-  if (!SETTINGS.hasCustomFont()) {
-    return false;
-  }
-  const char* fontPath = SETTINGS.customFontPath;
-  if (!Storage.exists(fontPath)) {
-    LOG_ERR("FNT", "Custom font not found: %s", fontPath);
-    SETTINGS.customFontPath[0] = '\0';
-    SETTINGS.saveToFile();
-    return false;
-  }
-  SdFontFamily* font = new SdFontFamily(fontPath);
-  if (font && font->load()) {
-    gfxRenderer.insertSdFont(SETTINGS.getReaderFontId(), font);
-    LOG_DBG("FNT", "Loaded custom font: %s", fontPath);
-    return true;
-  }
-  LOG_ERR("FNT", "Failed to load custom font: %s", fontPath);
-  delete font;
-  SETTINGS.customFontPath[0] = '\0';
-  SETTINGS.saveToFile();
-  return false;
-}
-
-static int currentCustomFontId = 0;
-
-bool reloadCustomReaderFont() {
-  if (currentCustomFontId != 0 && renderer.hasFont(currentCustomFontId)) {
-    renderer.removeFont(currentCustomFontId);
-    currentCustomFontId = 0;
-    // Flush the shared glyph bitmap cache to reclaim heap before loading a new font.
-    // Without this, heap fragmentation prevents the 32KB inflate ring-buffer allocation.
-    SdFontData::clearCache();
-  }
-  const bool loaded = loadCustomReaderFont(renderer);
-  currentCustomFontId = loaded ? SETTINGS.getReaderFontId() : 0;
-  return loaded;
-}
 // ──────────────────────────────────────────────────────────────────────────
 
 // Enter deep sleep mode
@@ -168,7 +141,7 @@ void setupDisplayAndFonts() {
   activityManager.begin();
   LOG_DBG("MAIN", "Display initialized");
 
-  // Load Pretendard 12/14/16pt (2-bit) from Flash — zero-copy, no interval RAM allocation
+  // Load embedded fonts (2-bit) from Flash — zero-copy, no interval RAM allocation
   auto loadEmbeddedFont = [](const uint8_t* start, const uint8_t* end,
                               SdFont*& font, SdFontFamily*& family,
                               int fontId, const char* label) {
@@ -182,15 +155,19 @@ void setupDisplayAndFonts() {
     renderer.insertSdFont(fontId, family);
   };
 
+  loadEmbeddedFont(_binary_pretendard_10_epdfont_start, _binary_pretendard_10_epdfont_end,
+                   gCjkFont10, gCjkFontFamily10, PRETENDARD_10_FONT_ID, "Pretendard 10pt");
   loadEmbeddedFont(_binary_pretendard_12_epdfont_start, _binary_pretendard_12_epdfont_end,
                    gCjkFont12, gCjkFontFamily12, PRETENDARD_12_FONT_ID, "Pretendard 12pt");
   loadEmbeddedFont(_binary_pretendard_14_epdfont_start, _binary_pretendard_14_epdfont_end,
                    gCjkFont14, gCjkFontFamily14, PRETENDARD_14_FONT_ID, "Pretendard 14pt");
-  loadEmbeddedFont(_binary_pretendard_16_epdfont_start, _binary_pretendard_16_epdfont_end,
-                   gCjkFont16, gCjkFontFamily16, PRETENDARD_16_FONT_ID, "Pretendard 16pt");
 
-  loadCustomReaderFont(renderer);
-  currentCustomFontId = SETTINGS.hasCustomFont() ? SETTINGS.getReaderFontId() : 0;
+  loadEmbeddedFont(_binary_kopub_10_epdfont_start, _binary_kopub_10_epdfont_end,
+                   gKopubFont10, gKopubFontFamily10, KOPUB_10_FONT_ID, "KoPub Dotum 10pt");
+  loadEmbeddedFont(_binary_kopub_12_epdfont_start, _binary_kopub_12_epdfont_end,
+                   gKopubFont12, gKopubFontFamily12, KOPUB_12_FONT_ID, "KoPub Dotum 12pt");
+  loadEmbeddedFont(_binary_kopub_14_epdfont_start, _binary_kopub_14_epdfont_end,
+                   gKopubFont14, gKopubFontFamily14, KOPUB_14_FONT_ID, "KoPub Dotum 14pt");
 
   LOG_DBG("MAIN", "Fonts setup complete");
 }

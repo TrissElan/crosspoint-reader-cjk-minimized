@@ -267,19 +267,10 @@ int CrossPointSettings::getRefreshFrequency() const {
 }
 
 int CrossPointSettings::getReaderFontId() const {
-  // Built-in size variants
-  if (strcmp(customFontPath, "builtin:12") == 0) return PRETENDARD_12_FONT_ID;
+  if (strcmp(customFontPath, "builtin:10") == 0) return PRETENDARD_10_FONT_ID;
   if (strcmp(customFontPath, "builtin:14") == 0) return PRETENDARD_14_FONT_ID;
-  if (strcmp(customFontPath, "builtin:16") == 0) return PRETENDARD_16_FONT_ID;
-
-  if (hasCustomFont()) {
-    // Generate unique negative ID based on font path hash (djb2)
-    // Different custom fonts get different IDs for section cache invalidation
-    uint32_t hash = 5381;
-    for (const char* p = customFontPath; *p; p++) {
-      hash = ((hash << 5) + hash) + static_cast<uint8_t>(*p);
-    }
-    return -static_cast<int>((hash & 0x7FFFFFFF) | 1);
-  }
+  if (strcmp(customFontPath, "builtin:kopub10") == 0) return KOPUB_10_FONT_ID;
+  if (strcmp(customFontPath, "builtin:kopub12") == 0) return KOPUB_12_FONT_ID;
+  if (strcmp(customFontPath, "builtin:kopub14") == 0) return KOPUB_14_FONT_ID;
   return PRETENDARD_12_FONT_ID;
 }

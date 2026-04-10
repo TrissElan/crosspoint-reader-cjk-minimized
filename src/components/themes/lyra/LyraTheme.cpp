@@ -547,7 +547,8 @@ void LyraTheme::drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount
       UIIcon icon = rowIcon(i);
       const uint8_t* iconBitmap = iconForName(icon, mainMenuIconSize);
       if (iconBitmap != nullptr) {
-        renderer.drawIcon(iconBitmap, textX, textY + 3, mainMenuIconSize, mainMenuIconSize);
+        const int iconY = tileRect.y + (LyraMetrics::values.menuRowHeight - mainMenuIconSize) / 2;
+        renderer.drawIcon(iconBitmap, textX, iconY, mainMenuIconSize, mainMenuIconSize);
         textX += mainMenuIconSize + hPaddingInSelection + 2;
       }
     }

@@ -151,10 +151,6 @@ void ImageBlock::render(GfxRenderer& renderer, const int x, const int y) {
 
   LOG_DBG("IMG", "Using %s decoder", decoder->getFormatName());
 
-  // Release glyph cache arena to free heap for image decoder.
-  // The arena will be lazily re-allocated on next glyph access.
-  renderer.releaseGlyphCaches();
-
   bool success = decoder->decodeToFramebuffer(imagePath, renderer, config);
   if (!success) {
     LOG_ERR("IMG", "Failed to decode image: %s", imagePath.c_str());

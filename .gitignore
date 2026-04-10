@@ -20,3 +20,6 @@ build
 lib/EpdFont/builtinFonts/source/
 lib/EpdFont/scripts/fonts/
 lib/EpdFont/scripts/sd_fonts/
+
+# Auto-generated assembly (rebuilt by embed_cjk_font.py pre-build script)
+src/pretendard_embed.S

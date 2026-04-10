@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate Pretendard JP 2-bit epdfont files (12pt, 14pt, 16pt) for Flash embedding.
+Generate Pretendard JP 2-bit epdfont files (12pt, 14pt) for Flash embedding.
 
 Covers:
   - Basic Latin, Latin-1, Latin Extended-A, Cyrillic, Punctuation, Arrows, Math
@@ -13,7 +13,7 @@ Covers:
 Usage:
     python generate_pretendard_font.py          # all sizes
     python generate_pretendard_font.py 14       # single size
-    python generate_pretendard_font.py 12 16    # specific sizes
+    python generate_pretendard_font.py 12       # single size
 
 Output:
     ../builtinFonts/pretendard_{size}.epdfont
@@ -28,11 +28,11 @@ from ttf_to_epdfont import convert_ttf_to_epdfont  # noqa: E402
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 FONT_FILE = os.path.join(
-    SCRIPT_DIR, "..", "builtinFonts", "source", "PretendardJP-Regular.otf"
+    SCRIPT_DIR, "..", "builtinFonts", "source", "PretendardJP-Medium.otf"
 )
 BUILTIN_DIR = os.path.join(SCRIPT_DIR, "..", "builtinFonts")
 
-SIZES = [12, 14, 16]
+SIZES = [10, 12, 14]
 
 
 def load_codepoints(filename):

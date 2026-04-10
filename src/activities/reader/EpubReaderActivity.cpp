@@ -7,7 +7,6 @@
 #include <HalStorage.h>
 #include <I18n.h>
 #include <Logging.h>
-#include <SdFont.h>
 #include <esp_system.h>
 
 #include "CrossPointSettings.h"
@@ -522,10 +521,6 @@ void EpubReaderActivity::render(RenderLock&& lock) {
                                   SETTINGS.imageRendering)) {
       LOG_DBG("ERS", "Cache not found, building...");
 
-      // Release glyph cache arena before page building to ensure inflate reader
-      // can allocate its 32KB contiguous buffer for DEFLATE decompression.
-      SdFontData::releaseCache();
-
       const auto popupFn = [this]() { GUI.drawPopup(renderer, tr(STR_INDEXING)); };
 
       if (!section->createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
@@ -690,8 +685,10 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   LOG_DBG("ERS", "Heap: before=%lu after=%lu delta=%ld", heapBefore, heapAfter,
           (int32_t)heapAfter - (int32_t)heapBefore);
 
+  const bool useAA = SETTINGS.textAntiAliasing;
+
   // Force special handling for pages with images when anti-aliasing is on
-  bool imagePageWithAA = page->hasImages() && SETTINGS.textAntiAliasing;
+  bool imagePageWithAA = page->hasImages() && useAA;
 
   page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);
   renderStatusBar();
@@ -728,7 +725,7 @@ void EpubReaderActivity::renderContents(std::unique_ptr<Page> page, const int or
   // grayscale rendering
   // Only proceed if BW buffer was stored successfully — otherwise grey passes
   // would corrupt the framebuffer with no way to restore it.
-  if (SETTINGS.textAntiAliasing && bwStored) {
+  if (useAA && bwStored) {
     renderer.clearScreen(0x00);
     renderer.setRenderMode(GfxRenderer::GRAYSCALE_LSB);
     page->render(renderer, SETTINGS.getReaderFontId(), orientedMarginLeft, orientedMarginTop);

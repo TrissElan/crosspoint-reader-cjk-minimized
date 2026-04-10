@@ -4,7 +4,6 @@
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <Logging.h>
-#include <SdFont.h>
 #include <Utf8.h>
 #include <expat.h>
 
@@ -315,10 +314,6 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
             // Extract image to cache file
             FsFile cachedImageFile;
             bool extractSuccess = false;
-
-            // Release glyph cache arena before image extraction so the inflate
-            // reader can allocate its 32KB contiguous DEFLATE buffer.
-            SdFontData::releaseCache();
 
             if (Storage.openFileForWrite("EHP", cachedImagePath, cachedImageFile)) {
               extractSuccess = self->epub->readItemContentsToStream(resolvedPath, cachedImageFile, 4096);

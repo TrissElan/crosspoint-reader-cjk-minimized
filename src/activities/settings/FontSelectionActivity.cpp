@@ -2,14 +2,12 @@
 
 #include <GfxRenderer.h>
 #include <HalStorage.h>
-#include <HardwareSerial.h>
 #include <I18n.h>
 #include <Logging.h>
 
 #include <cstring>
 
 #include "CrossPointSettings.h"
-#include "FontManager.h"
 #include "MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -85,68 +83,30 @@ void FontSelectionActivity::taskTrampoline(void* param) {
   self->displayTaskLoop();
 }
 
-void FontSelectionActivity::scanFontsInDirectory(const char* dirPath) {
-  FsFile dir = Storage.open(dirPath);
-  if (!dir) {
-    LOG_DBG("FNT", "Font folder %s not found", dirPath);
-    return;
-  }
-
-  if (!dir.isDirectory()) {
-    LOG_DBG("FNT", "%s is not a directory", dirPath);
-    dir.close();
-    return;
-  }
-
-  for (auto file = dir.openNextFile(); file; file = dir.openNextFile()) {
-    if (!file.isDirectory()) {
-      char filename[64];
-      file.getName(filename, sizeof(filename));
-
-      const size_t len = strlen(filename);
-      if (len > 8 && strcasecmp(filename + len - 8, ".epdfont") == 0 && strncmp(filename, "._", 2) != 0) {
-        std::string fullPath = std::string(dirPath) + "/" + filename;
-        fontFiles.push_back(fullPath);
-
-        std::string displayName(filename, len - 8);
-        fontNames.push_back(displayName);
-
-        LOG_DBG("FNT", "Found font: %s", fullPath.c_str());
-      }
-    }
-    file.close();
-  }
-  dir.close();
-}
-
 void FontSelectionActivity::loadFontList() {
   fontFiles.clear();
   fontNames.clear();
 
-  // Built-in Pretendard sizes
+  // Built-in font options
+  fontFiles.emplace_back("builtin:10");
+  fontNames.emplace_back("Pretendard 10pt");
   fontFiles.emplace_back("builtin:12");
-  fontNames.emplace_back("Pretendard 12pt (Built-in)");
+  fontNames.emplace_back("Pretendard 12pt");
   fontFiles.emplace_back("builtin:14");
-  fontNames.emplace_back("Pretendard 14pt (Built-in)");
-  fontFiles.emplace_back("builtin:16");
-  fontNames.emplace_back("Pretendard 16pt (Built-in)");
-
-  Storage.mkdir("/.crosspoint");
-  Storage.mkdir(FONTS_DIR);
-
-  scanFontsInDirectory(FONTS_DIR);
-  scanFontsInDirectory(ROOT_FONTS_DIR);
-
-  LOG_DBG("FNT", "Total fonts found: %zu (including built-in)", fontFiles.size());
+  fontNames.emplace_back("Pretendard 14pt");
+  fontFiles.emplace_back("builtin:kopub10");
+  fontNames.emplace_back("KoPub Dotum 10pt");
+  fontFiles.emplace_back("builtin:kopub12");
+  fontNames.emplace_back("KoPub Dotum 12pt");
+  fontFiles.emplace_back("builtin:kopub14");
+  fontNames.emplace_back("KoPub Dotum 14pt");
 
   // Find currently selected font index
   selectedIndex = 0;
-  if (SETTINGS.customFontPath[0] != '\0') {
-    for (size_t i = 1; i < fontFiles.size(); i++) {
-      if (fontFiles[i] == SETTINGS.customFontPath) {
-        selectedIndex = static_cast<int>(i);
-        break;
-      }
+  for (size_t i = 0; i < fontFiles.size(); i++) {
+    if (fontFiles[i] == SETTINGS.customFontPath) {
+      selectedIndex = static_cast<int>(i);
+      break;
     }
   }
 }
@@ -199,7 +159,7 @@ void FontSelectionActivity::loop() {
 
 void FontSelectionActivity::handleSelection() {
   // Stop the display task first to eliminate mutex contention.
-  // Heavy SD I/O (font load + cache deletion) under mutex causes watchdog reboot.
+  // Heavy SD I/O (cache deletion) under mutex causes watchdog reboot.
   xSemaphoreTake(displayMutex, portMAX_DELAY);
   if (displayTaskHandle) {
     vTaskDelete(displayTaskHandle);
@@ -207,7 +167,7 @@ void FontSelectionActivity::handleSelection() {
   }
   xSemaphoreGive(displayMutex);
 
-  // Now safe to use renderer directly ??no competing task
+  // Now safe to use renderer directly — no competing task
   renderer.clearScreen();
   renderer.drawCenteredText(UI_12_FONT_ID, renderer.getScreenHeight() / 2 - 10, "Applying font...");
   renderer.displayBuffer();
@@ -218,7 +178,6 @@ void FontSelectionActivity::handleSelection() {
   SETTINGS.saveToFile();
   LOG_DBG("FNT", "Font selected: %s", SETTINGS.customFontPath);
 
-  reloadCustomReaderFont();
   invalidateReaderCaches();
 
   finish();
