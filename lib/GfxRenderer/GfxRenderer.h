@@ -162,6 +162,10 @@ class GfxRenderer {
   // Font helpers
   const uint8_t* getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const;
 
+  // Release SD font glyph cache arena to free heap for image decoding.
+  // Cache will be lazily re-allocated on next glyph access.
+  void releaseGlyphCaches();
+
   // Low level functions
   uint8_t* getFrameBuffer() const;
   size_t getBufferSize() const;

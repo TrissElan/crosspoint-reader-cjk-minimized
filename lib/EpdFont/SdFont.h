@@ -3,46 +3,58 @@
 #include <HalStorage.h>
 
 #include <cstdint>
-#include <list>
+#include <cstring>
 #include <string>
-#include <unordered_map>
 
 #include "EpdFontData.h"
 #include "SdFontFormat.h"
 
 /**
- * LRU Cache for glyph bitmap data loaded from SD card.
- * Automatically evicts least recently used entries when memory limit is reached.
+ * Arena-based bitmap cache for glyph data loaded from SD card.
+ * Uses a single pre-allocated memory block (arena) to avoid heap fragmentation.
+ * When the arena is full, it flushes entirely and refills on demand.
  */
 class GlyphBitmapCache {
  public:
-  struct CacheEntry {
-    uint32_t codepoint;
-    uint8_t* bitmap;
-    uint32_t size;
+  static constexpr size_t TABLE_SIZE = 512;  // Open-addressing hash table slots
+
+  struct Entry {
+    uint32_t key;     // 0 = empty slot
+    uint16_t offset;  // Byte offset into arena
+    uint16_t size;    // Bitmap size in bytes
   };
 
  private:
-  size_t maxCacheSize;
-  size_t currentSize;
-  std::list<CacheEntry> cacheList;  // Most recent at front
-  std::unordered_map<uint32_t, std::list<CacheEntry>::iterator> cacheMap;
+  uint8_t* arena;
+  size_t arenaSize;
+  size_t writePos;
+  size_t entryCount;
+  Entry table[TABLE_SIZE];
 
-  void evictOldest();
+  size_t findSlot(uint32_t key) const;
+  bool ensureArena();
 
  public:
-  explicit GlyphBitmapCache(size_t maxSize = 32768);  // Default 32KB cache
+  explicit GlyphBitmapCache(size_t maxSize = 32768);
   ~GlyphBitmapCache();
 
   // Returns cached bitmap or nullptr if not cached
-  const uint8_t* get(uint32_t codepoint);
+  const uint8_t* get(uint32_t key) const;
 
-  // Stores bitmap in cache, returns pointer to cached data
-  const uint8_t* put(uint32_t codepoint, const uint8_t* data, uint32_t size);
+  // Stores bitmap in cache (copies data), returns pointer to cached data
+  const uint8_t* put(uint32_t key, const uint8_t* data, uint32_t size);
+
+  // Reserves space in arena and returns writable pointer (for direct SD read)
+  // Returns nullptr if size exceeds arena capacity. Flushes if needed.
+  uint8_t* reserve(uint32_t key, uint32_t size);
+
+  // Confirms a previous reserve() succeeded (bitmap data was written)
+  void commitReserve(uint32_t key, uint32_t size);
 
   void clear();
-  size_t getUsedSize() const { return currentSize; }
-  size_t getMaxSize() const { return maxCacheSize; }
+  void releaseArena();
+  size_t getUsedSize() const { return writePos; }
+  size_t getMaxSize() const { return arenaSize; }
 };
 
 /**
@@ -157,6 +169,7 @@ class SdFontData {
   // Static cache management
   static void setCacheSize(size_t maxBytes);
   static void clearCache();
+  static void releaseCache();
   static size_t getCacheUsedSize();
 };
 

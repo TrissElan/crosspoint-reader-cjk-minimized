@@ -10,75 +10,96 @@
 #include <new>
 
 // ============================================================================
-// GlyphBitmapCache Implementation
+// GlyphBitmapCache Implementation (Arena-based, zero per-glyph heap allocation)
 // ============================================================================
 
-GlyphBitmapCache::GlyphBitmapCache(size_t maxSize) : maxCacheSize(maxSize), currentSize(0) {}
-
-GlyphBitmapCache::~GlyphBitmapCache() { clear(); }
-
-void GlyphBitmapCache::evictOldest() {
-  while (currentSize > maxCacheSize && !cacheList.empty()) {
-    auto& oldest = cacheList.back();
-    currentSize -= oldest.size;
-    cacheMap.erase(oldest.codepoint);
-    free(oldest.bitmap);
-    cacheList.pop_back();
-  }
+GlyphBitmapCache::GlyphBitmapCache(size_t maxSize) : arena(nullptr), arenaSize(maxSize), writePos(0), entryCount(0) {
+  memset(table, 0, sizeof(table));
 }
 
-const uint8_t* GlyphBitmapCache::get(uint32_t codepoint) {
-  auto it = cacheMap.find(codepoint);
-  if (it == cacheMap.end()) {
-    return nullptr;
-  }
+GlyphBitmapCache::~GlyphBitmapCache() { free(arena); }
 
-  // Move to front (most recently used)
-  if (it->second != cacheList.begin()) {
-    cacheList.splice(cacheList.begin(), cacheList, it->second);
+bool GlyphBitmapCache::ensureArena() {
+  if (arena) return true;
+  arena = static_cast<uint8_t*>(malloc(arenaSize));
+  if (!arena) {
+    Serial.printf("[%lu] [SdFont] Failed to allocate %u byte arena\n", millis(), static_cast<unsigned>(arenaSize));
+    return false;
   }
-
-  return it->second->bitmap;
+  return true;
 }
 
-const uint8_t* GlyphBitmapCache::put(uint32_t codepoint, const uint8_t* data, uint32_t size) {
-  // Check if already cached
-  auto it = cacheMap.find(codepoint);
-  if (it != cacheMap.end()) {
-    // Move to front
-    if (it->second != cacheList.begin()) {
-      cacheList.splice(cacheList.begin(), cacheList, it->second);
+// Knuth multiplicative hash
+size_t GlyphBitmapCache::findSlot(uint32_t key) const {
+  size_t idx = (key * 2654435769u) >> (32 - 9);  // 9 bits for TABLE_SIZE=512
+  for (size_t i = 0; i < TABLE_SIZE; i++) {
+    size_t slot = (idx + i) & (TABLE_SIZE - 1);
+    if (table[slot].key == 0 || table[slot].key == key) {
+      return slot;
     }
-    return it->second->bitmap;
+  }
+  return TABLE_SIZE;  // Table full (should not happen with 512 slots / ~250 glyphs per page)
+}
+
+const uint8_t* GlyphBitmapCache::get(uint32_t key) const {
+  if (!arena || key == 0) return nullptr;
+  size_t slot = findSlot(key);
+  if (slot >= TABLE_SIZE || table[slot].key != key) return nullptr;
+  return arena + table[slot].offset;
+}
+
+const uint8_t* GlyphBitmapCache::put(uint32_t key, const uint8_t* data, uint32_t size) {
+  uint8_t* dest = reserve(key, size);
+  if (!dest) return nullptr;
+  memcpy(dest, data, size);
+  commitReserve(key, size);
+  return dest;
+}
+
+uint8_t* GlyphBitmapCache::reserve(uint32_t key, uint32_t size) {
+  if (key == 0 || size == 0 || size > arenaSize) return nullptr;
+  if (!ensureArena()) return nullptr;
+
+  // Check if already cached
+  size_t slot = findSlot(key);
+  if (slot < TABLE_SIZE && table[slot].key == key) {
+    return arena + table[slot].offset;  // Already exists
   }
 
-  // Allocate and copy bitmap data
-  uint8_t* bitmapCopy = static_cast<uint8_t*>(malloc(size));
-  if (!bitmapCopy) {
-    Serial.printf("[%lu] [SdFont] Failed to allocate %u bytes for glyph cache\n", millis(), size);
-    return nullptr;
+  // Flush if not enough space or table too full
+  if (writePos + size > arenaSize || entryCount >= TABLE_SIZE * 3 / 4) {
+    clear();
+    slot = findSlot(key);
   }
-  memcpy(bitmapCopy, data, size);
 
-  // Add to cache
-  CacheEntry entry = {codepoint, bitmapCopy, size};
-  cacheList.push_front(entry);
-  cacheMap[codepoint] = cacheList.begin();
-  currentSize += size;
+  if (slot >= TABLE_SIZE) return nullptr;
 
-  // Evict if over limit
-  evictOldest();
+  return arena + writePos;
+}
 
-  return bitmapCopy;
+void GlyphBitmapCache::commitReserve(uint32_t key, uint32_t size) {
+  if (!arena || key == 0) return;
+  size_t slot = findSlot(key);
+  if (slot >= TABLE_SIZE) return;
+  if (table[slot].key == key) return;  // Already committed
+
+  table[slot].key = key;
+  table[slot].offset = static_cast<uint16_t>(writePos);
+  table[slot].size = static_cast<uint16_t>(size);
+  writePos += size;
+  entryCount++;
 }
 
 void GlyphBitmapCache::clear() {
-  for (auto& entry : cacheList) {
-    free(entry.bitmap);
-  }
-  cacheList.clear();
-  cacheMap.clear();
-  currentSize = 0;
+  memset(table, 0, sizeof(table));
+  writePos = 0;
+  entryCount = 0;
+}
+
+void GlyphBitmapCache::releaseArena() {
+  clear();
+  free(arena);
+  arena = nullptr;
 }
 
 // ============================================================================
@@ -519,24 +540,21 @@ const uint8_t* SdFontData::getGlyphBitmap(uint32_t codepoint) const {
     return nullptr;
   }
 
-  // Allocate temporary buffer for reading
-  uint8_t* tempBuffer = static_cast<uint8_t*>(malloc(fileGlyph.dataLength));
-  if (!tempBuffer) {
+  // Reserve space in arena and read directly into it (no temp buffer malloc)
+  uint8_t* dest = sharedCache->reserve(cacheKey, fileGlyph.dataLength);
+  if (!dest) {
     return nullptr;
   }
 
-  if (fontFile.read(tempBuffer, fileGlyph.dataLength) != static_cast<int>(fileGlyph.dataLength)) {
-    free(tempBuffer);
+  if (fontFile.read(dest, fileGlyph.dataLength) != static_cast<int>(fileGlyph.dataLength)) {
     return nullptr;
   }
 
   // File stays open for next glyph read (performance optimization)
 
-  // Store in cache
-  const uint8_t* result = sharedCache->put(cacheKey, tempBuffer, fileGlyph.dataLength);
-  free(tempBuffer);
-
-  return result;
+  // Commit the reservation
+  sharedCache->commitReserve(cacheKey, fileGlyph.dataLength);
+  return dest;
 }
 
 void SdFontData::setCacheSize(size_t maxBytes) {
@@ -548,7 +566,13 @@ void SdFontData::setCacheSize(size_t maxBytes) {
 
 void SdFontData::clearCache() {
   if (sharedCache != nullptr) {
-    sharedCache->clear();
+    sharedCache->releaseArena();
+  }
+}
+
+void SdFontData::releaseCache() {
+  if (sharedCache != nullptr) {
+    sharedCache->releaseArena();
   }
 }
 

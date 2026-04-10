@@ -2,11 +2,14 @@
 
 #include <HalGPIO.h>
 #include <Logging.h>
+#include <SdFont.h>
 #include <Utf8.h>
 
 const uint8_t* GfxRenderer::getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const {
   return &fontData->bitmap[glyph->dataOffset];
 }
+
+void GfxRenderer::releaseGlyphCaches() { SdFontData::releaseCache(); }
 
 void GfxRenderer::begin() {
   frameBuffer = display.getFrameBuffer();
