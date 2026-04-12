@@ -17,7 +17,6 @@
 #include "state/MappedInputManager.h"
 #include "ReaderUtils.h"
 #include "state/RecentBooksStore.h"
-#include "activities/settings/SettingsActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -350,21 +349,6 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       }
       activityManager.goHome();
       return;
-    }
-    case EpubReaderMenuActivity::MenuAction::READER_SETTINGS: {
-      startActivityForResult(
-          std::make_unique<SettingsActivity>(renderer, mappedInput, 1),
-          [this](const ActivityResult&) {
-            SETTINGS.saveToFile();
-            if (section) {
-              RenderLock lock(*this);
-              cachedSpineIndex = currentSpineIndex;
-              cachedChapterTotalPageCount = section->pageCount;
-              nextPageNumber = section->currentPage;
-              section.reset();
-            }
-          });
-      break;
     }
   }
 }
