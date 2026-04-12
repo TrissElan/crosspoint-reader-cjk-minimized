@@ -452,12 +452,12 @@ void XMLCALL ChapterHtmlSlimParser::startElement(void* userData, const XML_Char*
                   return;
                 }
                 int xPos = (self->viewportWidth - displayWidth) / 2;
-                auto pageImage = std::make_shared<PageImage>(imageBlock, xPos, self->currentPageNextY);
+                auto pageImage = std::make_unique<PageImage>(imageBlock, xPos, self->currentPageNextY);
                 if (!pageImage) {
                   LOG_ERR("EHP", "Failed to create PageImage");
                   return;
                 }
-                self->currentPage->elements.push_back(pageImage);
+                self->currentPage->elements.push_back(std::move(pageImage));
                 self->currentPageNextY += displayHeight;
 
                 self->depth += 1;
@@ -1098,7 +1098,7 @@ void ChapterHtmlSlimParser::addLineToPage(std::shared_ptr<TextBlock> line) {
 
   // Apply horizontal left inset (margin + padding) as x position offset
   const int16_t xOffset = line->getBlockStyle().leftInset();
-  currentPage->elements.push_back(std::make_shared<PageLine>(line, xOffset, currentPageNextY));
+  currentPage->elements.push_back(std::make_unique<PageLine>(line, xOffset, currentPageNextY));
   currentPageNextY += lineHeight;
 }
 

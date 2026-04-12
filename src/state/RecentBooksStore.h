@@ -47,9 +47,6 @@ class RecentBooksStore {
 
   bool loadFromFile();
   RecentBook getDataFromBook(std::string path) const;
-
- private:
-  bool loadFromBinaryFile();
 };
 
 // Helper macro to access recent books store

@@ -5,8 +5,8 @@
 #include <SdFontFamily.h>
 
 #include <cstring>
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "Bitmap.h"
@@ -40,8 +40,8 @@ class GfxRenderer {
   uint16_t panelWidthBytes = HalDisplay::DISPLAY_WIDTH_BYTES;
   uint32_t frameBufferSize = HalDisplay::BUFFER_SIZE;
   std::vector<uint8_t*> bwBufferChunks;
-  std::map<int, EpdFontFamily> fontMap;
-  std::map<int, SdFontFamily*> sdFontMap;  // GfxRenderer owns these
+  std::unordered_map<int, EpdFontFamily> fontMap;
+  std::unordered_map<int, SdFontFamily*> sdFontMap;  // GfxRenderer owns these
 
   void renderChar(const EpdFontFamily& fontFamily, uint32_t cp, int* x, int* y, bool pixelState,
                   EpdFontFamily::Style style) const;
@@ -71,7 +71,7 @@ class GfxRenderer {
   void insertSdFont(int fontId, SdFontFamily* font);
   bool hasFont(int fontId) const;
   void removeFont(int fontId);
-  const std::map<int, EpdFontFamily>& getFontMap() const { return fontMap; }
+  const std::unordered_map<int, EpdFontFamily>& getFontMap() const { return fontMap; }
 
   // Orientation control (affects logical width/height and coordinate transforms)
   void setOrientation(const Orientation o) { orientation = o; }

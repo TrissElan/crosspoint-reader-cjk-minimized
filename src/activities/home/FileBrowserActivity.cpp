@@ -9,8 +9,8 @@
 #include <algorithm>
 
 #include "../util/ConfirmationActivity.h"
-#include "CrossPointSettings.h"
-#include "MappedInputManager.h"
+#include "settings/CrossPointSettings.h"
+#include "state/MappedInputManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -215,7 +215,7 @@ void FileBrowserActivity::loop() {
         selectorIndex = 0;
         requestUpdate();
       } else {
-        onSelectBook(basepath + entry);
+        activityManager.goToReader(basepath + entry);
       }
     }
     return;
@@ -237,7 +237,7 @@ void FileBrowserActivity::loop() {
 
         requestUpdate();
       } else {
-        onGoHome();
+        activityManager.goHome();
       }
     }
   }

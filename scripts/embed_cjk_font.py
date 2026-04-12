@@ -1,7 +1,7 @@
 """
 embed_cjk_font.py - PlatformIO pre-build extra script
 
-Generates a RISC-V assembly file (src/pretendard_embed.S) that uses
+Generates a RISC-V assembly file (src/builtin_fonts_embed.S) that uses
 .incbin to embed all builtin epdfont files into .rodata (Flash).
 Zero-copy: no RAM allocation for font data.
 """
@@ -10,7 +10,7 @@ import os
 Import("env")  # type: ignore  # noqa: F821  (PlatformIO SCons global)
 
 PROJECT_DIR = env["PROJECT_DIR"]
-ASM_OUT = os.path.join(PROJECT_DIR, "src", "pretendard_embed.S")
+ASM_OUT = os.path.join(PROJECT_DIR, "src", "builtin_fonts_embed.S")
 
 # (symbol_prefix, filename_prefix, sizes)
 FONTS = [

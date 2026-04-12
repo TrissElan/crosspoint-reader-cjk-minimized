@@ -58,7 +58,7 @@ class PageImage final : public PageElement {
 class Page {
  public:
   // the list of block index and line numbers on this page
-  std::vector<std::shared_ptr<PageElement>> elements;
+  std::vector<std::unique_ptr<PageElement>> elements;
   std::vector<FootnoteEntry> footnotes;
   static constexpr uint16_t MAX_FOOTNOTES_PER_PAGE = 16;
 
@@ -79,7 +79,7 @@ class Page {
   // Check if page contains any images (used to force full refresh)
   bool hasImages() const {
     return std::any_of(elements.begin(), elements.end(),
-                       [](const std::shared_ptr<PageElement>& el) { return el->getTag() == TAG_PageImage; });
+                       [](const std::unique_ptr<PageElement>& el) { return el->getTag() == TAG_PageImage; });
   }
 
   // Get bounding box of all images on the page (union of image rects)

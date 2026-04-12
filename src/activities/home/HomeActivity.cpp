@@ -1,20 +1,16 @@
 #include "HomeActivity.h"
 
-#include <Bitmap.h>
-#include <Epub.h>
 #include <FsHelpers.h>
 #include <GfxRenderer.h>
 #include <HalStorage.h>
 #include <I18n.h>
-#include <Utf8.h>
 
-#include <cstring>
 #include <vector>
 
-#include "CrossPointSettings.h"
-#include "CrossPointState.h"
-#include "MappedInputManager.h"
-#include "RecentBooksStore.h"
+#include "settings/CrossPointSettings.h"
+#include "state/CrossPointState.h"
+#include "state/MappedInputManager.h"
+#include "state/RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -46,52 +42,12 @@ void HomeActivity::loadRecentBooks(int maxBooks) {
   }
 }
 
-void HomeActivity::loadRecentCovers(int coverHeight) {
-  recentsLoading = true;
-  bool showingLoading = false;
-  Rect popupRect;
-
-  int progress = 0;
-  for (RecentBook& book : recentBooks) {
-    if (!book.coverBmpPath.empty()) {
-      std::string coverPath = UITheme::getCoverThumbPath(book.coverBmpPath, coverHeight);
-      if (!Storage.exists(coverPath.c_str())) {
-        // If epub, try to load the metadata for title/author and cover
-        if (FsHelpers::hasEpubExtension(book.path)) {
-          Epub epub(book.path, "/.crosspoint");
-          // Skip loading css since we only need metadata here
-          epub.load(false, true);
-
-          // Try to generate thumbnail image for Continue Reading card
-          if (!showingLoading) {
-            showingLoading = true;
-            popupRect = GUI.drawPopup(renderer, tr(STR_LOADING_POPUP));
-          }
-          GUI.fillPopupProgress(renderer, popupRect, 10 + progress * (90 / recentBooks.size()));
-          bool success = epub.generateThumbBmp(coverHeight);
-          if (!success) {
-            RECENT_BOOKS.updateBook(book.path, book.title, book.author, "");
-            book.coverBmpPath = "";
-          }
-          coverRendered = false;
-          requestUpdate();
-        }
-      }
-    }
-    progress++;
-  }
-
-  recentsLoaded = true;
-  recentsLoading = false;
-}
-
 void HomeActivity::onEnter() {
   Activity::onEnter();
 
   selectorIndex = 0;
 
-  const auto& metrics = UITheme::getInstance().getMetrics();
-  loadRecentBooks(metrics.homeRecentBooksCount);
+  loadRecentBooks(3);
 
   // Trigger first update
   requestUpdate();
@@ -99,51 +55,6 @@ void HomeActivity::onEnter() {
 
 void HomeActivity::onExit() {
   Activity::onExit();
-
-  // Free the stored cover buffer if any
-  freeCoverBuffer();
-}
-
-bool HomeActivity::storeCoverBuffer() {
-  uint8_t* frameBuffer = renderer.getFrameBuffer();
-  if (!frameBuffer) {
-    return false;
-  }
-
-  // Free any existing buffer first
-  freeCoverBuffer();
-
-  const size_t bufferSize = renderer.getBufferSize();
-  coverBuffer = static_cast<uint8_t*>(malloc(bufferSize));
-  if (!coverBuffer) {
-    return false;
-  }
-
-  memcpy(coverBuffer, frameBuffer, bufferSize);
-  return true;
-}
-
-bool HomeActivity::restoreCoverBuffer() {
-  if (!coverBuffer) {
-    return false;
-  }
-
-  uint8_t* frameBuffer = renderer.getFrameBuffer();
-  if (!frameBuffer) {
-    return false;
-  }
-
-  const size_t bufferSize = renderer.getBufferSize();
-  memcpy(frameBuffer, coverBuffer, bufferSize);
-  return true;
-}
-
-void HomeActivity::freeCoverBuffer() {
-  if (coverBuffer) {
-    free(coverBuffer);
-    coverBuffer = nullptr;
-  }
-  coverBufferStored = false;
 }
 
 void HomeActivity::loop() {
@@ -169,7 +80,7 @@ void HomeActivity::loop() {
     const int settingsIdx = idx;
 
     if (selectorIndex < recentBooks.size()) {
-      onSelectBook(recentBooks[selectorIndex].path);
+      activityManager.goToReader(recentBooks[selectorIndex].path);
     } else if (menuSelectedIndex == fileBrowserIdx) {
       onFileBrowserOpen();
     } else if (menuSelectedIndex == recentsIdx) {
@@ -189,13 +100,11 @@ void HomeActivity::render(RenderLock&&) {
 
   auto drawContent = [&]() {
     renderer.clearScreen();
-    bool bufferRestored = coverBufferStored && restoreCoverBuffer();
 
     GUI.drawHeader(renderer, Rect{0, metrics.topPadding, pageWidth, metrics.homeTopPadding}, nullptr);
 
-    GUI.drawRecentBookCover(renderer, Rect{0, metrics.homeTopPadding, pageWidth, metrics.homeCoverTileHeight},
-                            recentBooks, selectorIndex, coverRendered, coverBufferStored, bufferRestored,
-                            std::bind(&HomeActivity::storeCoverBuffer, this));
+    GUI.drawRecentBooks(renderer, Rect{0, metrics.homeTopPadding, pageWidth, metrics.homeCoverTileHeight},
+                        recentBooks, selectorIndex);
 
     // Build menu items dynamically
     std::vector<const char*> menuItems = {tr(STR_BROWSE_FILES), tr(STR_MENU_RECENT_BOOKS), tr(STR_FILE_TRANSFER),
@@ -216,17 +125,7 @@ void HomeActivity::render(RenderLock&&) {
   };
   drawContent();
   renderer.displayBufferWithAA(drawContent);
-
-  if (!firstRenderDone) {
-    firstRenderDone = true;
-    requestUpdate();
-  } else if (!recentsLoaded && !recentsLoading) {
-    recentsLoading = true;
-    loadRecentCovers(metrics.homeCoverHeight);
-  }
 }
-
-void HomeActivity::onSelectBook(const std::string& path) { activityManager.goToReader(path); }
 
 void HomeActivity::onFileBrowserOpen() { activityManager.goToFileBrowser(); }
 

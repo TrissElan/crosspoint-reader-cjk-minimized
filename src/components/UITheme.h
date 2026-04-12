@@ -3,7 +3,6 @@
 #include <functional>
 #include <memory>
 
-#include "CrossPointSettings.h"
 #include "components/themes/BaseTheme.h"
 
 class UITheme {
@@ -17,10 +16,9 @@ class UITheme {
   const ThemeMetrics& getMetrics() const { return *currentMetrics; }
   const BaseTheme& getTheme() const { return *currentTheme; }
   void reload();
-  void setTheme(CrossPointSettings::UI_THEME type);
+  void setupTheme();
   static int getNumberOfItemsPerPage(const GfxRenderer& renderer, bool hasHeader, bool hasTabBar, bool hasButtonHints,
                                      bool hasSubtitle);
-  static std::string getCoverThumbPath(std::string coverBmpPath, int coverHeight);
   static UIIcon getFileIcon(const std::string& filename);
   static int getStatusBarHeight();
   static int getProgressBarHeight();

@@ -6,8 +6,8 @@
 
 #include <algorithm>
 
-#include "MappedInputManager.h"
-#include "RecentBooksStore.h"
+#include "state/MappedInputManager.h"
+#include "state/RecentBooksStore.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 
@@ -50,13 +50,13 @@ void RecentBooksActivity::loop() {
   if (mappedInput.wasReleased(MappedInputManager::Button::Confirm)) {
     if (!recentBooks.empty() && selectorIndex < static_cast<int>(recentBooks.size())) {
       LOG_DBG("RBA", "Selected recent book: %s", recentBooks[selectorIndex].path.c_str());
-      onSelectBook(recentBooks[selectorIndex].path);
+      activityManager.goToReader(recentBooks[selectorIndex].path);
       return;
     }
   }
 
   if (mappedInput.wasReleased(MappedInputManager::Button::Back)) {
-    onGoHome();
+    activityManager.goHome();
   }
 
   int listSize = static_cast<int>(recentBooks.size());

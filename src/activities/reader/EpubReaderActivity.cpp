@@ -9,18 +9,17 @@
 #include <Logging.h>
 #include <esp_system.h>
 
-#include "CrossPointSettings.h"
-#include "CrossPointState.h"
+#include "settings/CrossPointSettings.h"
+#include "state/CrossPointState.h"
 #include "EpubReaderChapterSelectionActivity.h"
 #include "EpubReaderFootnotesActivity.h"
 #include "EpubReaderPercentSelectionActivity.h"
-#include "MappedInputManager.h"
+#include "state/MappedInputManager.h"
 #include "ReaderUtils.h"
-#include "RecentBooksStore.h"
+#include "state/RecentBooksStore.h"
 #include "activities/settings/SettingsActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
-#include "util/ScreenshotUtil.h"
 
 namespace {
 // pagesPerRefresh now comes from SETTINGS.getRefreshFrequency()
@@ -171,7 +170,7 @@ void EpubReaderActivity::loop() {
       restoreSavedPosition();
       return;
     }
-    onGoHome();
+    activityManager.goHome();
     return;
   }
 
@@ -183,7 +182,7 @@ void EpubReaderActivity::loop() {
   // At end of the book, forward button goes home and back button returns to last page
   if (currentSpineIndex > 0 && currentSpineIndex >= epub->getSpineItemsCount()) {
     if (nextTriggered) {
-      onGoHome();
+      activityManager.goHome();
     } else {
       currentSpineIndex = epub->getSpineItemsCount() - 1;
       nextPageNumber = UINT16_MAX;
@@ -333,7 +332,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
       break;
     }
     case EpubReaderMenuActivity::MenuAction::GO_HOME: {
-      onGoHome();
+      activityManager.goHome();
       return;
     }
     case EpubReaderMenuActivity::MenuAction::DELETE_CACHE: {
@@ -349,7 +348,7 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
           saveProgress(backupSpine, backupPage, backupPageCount);
         }
       }
-      onGoHome();
+      activityManager.goHome();
       return;
     }
     case EpubReaderMenuActivity::MenuAction::READER_SETTINGS: {
@@ -365,14 +364,6 @@ void EpubReaderActivity::onReaderMenuConfirm(EpubReaderMenuActivity::MenuAction 
               section.reset();
             }
           });
-      break;
-    }
-    case EpubReaderMenuActivity::MenuAction::SCREENSHOT: {
-      {
-        RenderLock lock(*this);
-        pendingScreenshot = true;
-      }
-      requestUpdate();
       break;
     }
   }
@@ -460,7 +451,6 @@ void EpubReaderActivity::pageTurn(bool isForwardTurn) {
   requestUpdate();
 }
 
-// TODO: Failure handling
 void EpubReaderActivity::render(RenderLock&& lock) {
   if (!epub) {
     return;
@@ -519,22 +509,23 @@ void EpubReaderActivity::render(RenderLock&& lock) {
     LOG_DBG("ERS", "Loading file: %s, index: %d", filepath.c_str(), currentSpineIndex);
     section = std::unique_ptr<Section>(new Section(epub, currentSpineIndex, renderer));
 
-    if (!section->loadSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
-                                  SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment,
-                                  SETTINGS.characterWrap, viewportWidth,
-                                  viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
-                                  SETTINGS.imageRendering)) {
+    const SectionLayoutParams sectionParams{SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+                                            static_cast<bool>(SETTINGS.extraParagraphSpacing),
+                                            SETTINGS.paragraphAlignment,
+                                            static_cast<bool>(SETTINGS.characterWrap), viewportWidth, viewportHeight,
+                                            static_cast<bool>(SETTINGS.hyphenationEnabled),
+                                            static_cast<bool>(SETTINGS.embeddedStyle),
+                                            SETTINGS.imageRendering};
+
+    if (!section->loadSectionFile(sectionParams)) {
       LOG_DBG("ERS", "Cache not found, building...");
 
       const auto popupFn = [this]() { GUI.drawPopup(renderer, tr(STR_INDEXING)); };
 
-      if (!section->createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
-                                      SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment,
-                                      SETTINGS.characterWrap, viewportWidth,
-                                      viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
-                                      SETTINGS.imageRendering, popupFn)) {
+      if (!section->createSectionFile(sectionParams, popupFn)) {
         LOG_ERR("ERS", "Failed to persist page data to SD");
         section.reset();
+        activityManager.goHome();
         return;
       }
     } else {
@@ -605,11 +596,18 @@ void EpubReaderActivity::render(RenderLock&& lock) {
       LOG_ERR("ERS", "Failed to load page from SD - clearing section cache");
       section->clearCache();
       section.reset();
+      loadPageFailCount++;
+      if (loadPageFailCount >= 3) {
+        LOG_ERR("ERS", "Repeated page load failure, returning to home");
+        loadPageFailCount = 0;
+        activityManager.goHome();
+        return;
+      }
       requestUpdate();  // Try again after clearing cache
-                        // TODO: prevent infinite loop if the page keeps failing to load for some reason
       automaticPageTurnActive = false;
       return;
     }
+    loadPageFailCount = 0;
 
     // Collect footnotes from the loaded page
     currentPageFootnotes = std::move(p->footnotes);
@@ -620,11 +618,6 @@ void EpubReaderActivity::render(RenderLock&& lock) {
   }
   silentIndexNextChapterIfNeeded(viewportWidth, viewportHeight);
   saveProgress(currentSpineIndex, section->currentPage, section->pageCount);
-
-  if (pendingScreenshot) {
-    pendingScreenshot = false;
-    ScreenshotUtil::takeScreenshot(renderer);
-  }
 }
 
 void EpubReaderActivity::silentIndexNextChapterIfNeeded(const uint16_t viewportWidth, const uint16_t viewportHeight) {
@@ -643,20 +636,19 @@ void EpubReaderActivity::silentIndexNextChapterIfNeeded(const uint16_t viewportW
   }
 
   Section nextSection(epub, nextSpineIndex, renderer);
-  if (nextSection.loadSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
-                                  SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment,
-                                  SETTINGS.characterWrap, viewportWidth,
-                                  viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
-                                  SETTINGS.imageRendering)) {
+  const SectionLayoutParams nextParams{SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
+                                       static_cast<bool>(SETTINGS.extraParagraphSpacing),
+                                       SETTINGS.paragraphAlignment,
+                                       static_cast<bool>(SETTINGS.characterWrap), viewportWidth, viewportHeight,
+                                       static_cast<bool>(SETTINGS.hyphenationEnabled),
+                                       static_cast<bool>(SETTINGS.embeddedStyle),
+                                       SETTINGS.imageRendering};
+  if (nextSection.loadSectionFile(nextParams)) {
     return;
   }
 
   LOG_DBG("ERS", "Silently indexing next chapter: %d", nextSpineIndex);
-  if (!nextSection.createSectionFile(SETTINGS.getReaderFontId(), SETTINGS.getReaderLineCompression(),
-                                     SETTINGS.extraParagraphSpacing, SETTINGS.paragraphAlignment,
-                                     SETTINGS.characterWrap, viewportWidth,
-                                     viewportHeight, SETTINGS.hyphenationEnabled, SETTINGS.embeddedStyle,
-                                     SETTINGS.imageRendering)) {
+  if (!nextSection.createSectionFile(nextParams)) {
     LOG_ERR("ERS", "Failed silent indexing for chapter: %d", nextSpineIndex);
   }
 }

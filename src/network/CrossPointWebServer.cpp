@@ -10,8 +10,8 @@
 
 #include <algorithm>
 
-#include "CrossPointSettings.h"
-#include "SettingsList.h"
+#include "settings/CrossPointSettings.h"
+#include "settings/SettingsList.h"
 #include "html/FilesPageHtml.generated.h"
 #include "html/HomePageHtml.generated.h"
 #include "html/SettingsPageHtml.generated.h"

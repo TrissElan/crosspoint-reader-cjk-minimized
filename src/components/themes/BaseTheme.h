@@ -45,7 +45,6 @@ struct ThemeMetrics {
   int scrollBarRightOffset;
 
   int homeTopPadding;
-  int homeCoverHeight;
   int homeCoverTileHeight;
   int homeRecentBooksCount;
 
@@ -86,7 +85,6 @@ constexpr ThemeMetrics values = {.batteryWidth = 15,
                                  .scrollBarWidth = 4,
                                  .scrollBarRightOffset = 5,
                                  .homeTopPadding = 40,
-                                 .homeCoverHeight = 400,
                                  .homeCoverTileHeight = 400,
                                  .homeRecentBooksCount = 1,
                                  .buttonHintsHeight = 40,
@@ -125,9 +123,8 @@ class BaseTheme {
                              const char* rightLabel = nullptr) const;
   virtual void drawTabBar(const GfxRenderer& renderer, Rect rect, const std::vector<TabInfo>& tabs,
                           bool selected) const;
-  virtual void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                                   const int selectorIndex, bool& coverRendered, bool& coverBufferStored,
-                                   bool& bufferRestored, std::function<bool()> storeCoverBuffer) const;
+  virtual void drawRecentBooks(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
+                               int selectorIndex) const;
   virtual void drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
                               const std::function<std::string(int index)>& buttonLabel,
                               const std::function<UIIcon(int index)>& rowIcon) const;

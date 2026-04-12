@@ -3,7 +3,7 @@
 #include <FsHelpers.h>
 #include <HalStorage.h>
 
-#include "CrossPointSettings.h"
+#include "settings/CrossPointSettings.h"
 #include "Epub.h"
 #include "EpubReaderActivity.h"
 #include "activities/util/BmpViewerActivity.h"

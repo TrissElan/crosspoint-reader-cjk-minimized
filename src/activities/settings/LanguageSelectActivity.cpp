@@ -7,7 +7,7 @@
 #include <iterator>
 
 #include "I18nKeys.h"
-#include "MappedInputManager.h"
+#include "state/MappedInputManager.h"
 #include "fontIds.h"
 
 void LanguageSelectActivity::onEnter() {

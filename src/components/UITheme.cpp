@@ -6,10 +6,10 @@
 
 #include <memory>
 
-#include "MappedInputManager.h"
-#include "RecentBooksStore.h"
+#include "state/MappedInputManager.h"
+#include "state/RecentBooksStore.h"
+#include "settings/CrossPointSettings.h"
 #include "components/themes/BaseTheme.h"
-#include "components/themes/lyra/Lyra3CoversTheme.h"
 #include "components/themes/lyra/LyraTheme.h"
 
 namespace {
@@ -19,33 +19,17 @@ constexpr int SKIP_PAGE_MS = 700;
 UITheme UITheme::instance;
 
 UITheme::UITheme() {
-  auto themeType = static_cast<CrossPointSettings::UI_THEME>(SETTINGS.uiTheme);
-  setTheme(themeType);
+  setupTheme();
 }
 
 void UITheme::reload() {
-  auto themeType = static_cast<CrossPointSettings::UI_THEME>(SETTINGS.uiTheme);
-  setTheme(themeType);
+  setupTheme();
 }
 
-void UITheme::setTheme(CrossPointSettings::UI_THEME type) {
-  switch (type) {
-    case CrossPointSettings::UI_THEME::LYRA:
-      LOG_DBG("UI", "Using Lyra theme");
-      currentTheme = std::make_unique<LyraTheme>();
-      currentMetrics = &LyraMetrics::values;
-      break;
-    case CrossPointSettings::UI_THEME::LYRA_3_COVERS:
-      LOG_DBG("UI", "Using Lyra 3 Covers theme");
-      currentTheme = std::make_unique<Lyra3CoversTheme>();
-      currentMetrics = &Lyra3CoversMetrics::values;
-      break;
-    default:
-      LOG_DBG("UI", "Unknown theme %d, falling back to Lyra", static_cast<int>(type));
-      currentTheme = std::make_unique<LyraTheme>();
-      currentMetrics = &LyraMetrics::values;
-      break;
-  }
+void UITheme::setupTheme() {
+  LOG_DBG("UI", "Using Lyra theme");
+  currentTheme = std::make_unique<LyraTheme>();
+  currentMetrics = &LyraMetrics::values;
 }
 
 int UITheme::getNumberOfItemsPerPage(const GfxRenderer& renderer, bool hasHeader, bool hasTabBar, bool hasButtonHints,
@@ -64,14 +48,6 @@ int UITheme::getNumberOfItemsPerPage(const GfxRenderer& renderer, bool hasHeader
   const int availableHeight = renderer.getScreenHeight() - reservedHeight;
   int rowHeight = hasSubtitle ? metrics.listWithSubtitleRowHeight : metrics.listRowHeight;
   return availableHeight / rowHeight;
-}
-
-std::string UITheme::getCoverThumbPath(std::string coverBmpPath, int coverHeight) {
-  size_t pos = coverBmpPath.find("[HEIGHT]", 0);
-  if (pos != std::string::npos) {
-    coverBmpPath.replace(pos, 8, std::to_string(coverHeight));
-  }
-  return coverBmpPath;
 }
 
 UIIcon UITheme::getFileIcon(const std::string& filename) {

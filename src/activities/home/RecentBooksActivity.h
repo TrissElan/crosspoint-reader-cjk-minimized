@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "../Activity.h"
-#include "RecentBooksStore.h"
+#include "state/RecentBooksStore.h"
 #include "util/ButtonNavigator.h"
 
 class RecentBooksActivity final : public Activity {

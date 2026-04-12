@@ -9,7 +9,7 @@
 #include "ActivityManager.h"  // for using the ActivityManager singleton
 #include "ActivityResult.h"
 #include "GfxRenderer.h"
-#include "MappedInputManager.h"
+#include "state/MappedInputManager.h"
 #include "RenderLock.h"
 
 class Activity {
@@ -54,8 +54,4 @@ class Activity {
   // Finish this activity and return to the previous one on the stack (if any)
   void finish();
 
-  // Convenience method to facilitate API transition to ActivityManager
-  // TODO: remove this in near future
-  void onGoHome();
-  void onSelectBook(const std::string& path);
 };

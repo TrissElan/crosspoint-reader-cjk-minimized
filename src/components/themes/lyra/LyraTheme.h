@@ -22,9 +22,8 @@ constexpr ThemeMetrics values = {.batteryWidth = 24,
                                  .scrollBarWidth = 4,
                                  .scrollBarRightOffset = 5,
                                  .homeTopPadding = 56,
-                                 .homeCoverHeight = 226,
-                                 .homeCoverTileHeight = 242,
-                                 .homeRecentBooksCount = 1,
+                                 .homeCoverTileHeight = 270,
+                                 .homeRecentBooksCount = 3,
                                  .buttonHintsHeight = 40,
                                  .sideButtonHintsWidth = 30,
                                  .progressBarHeight = 16,
@@ -60,9 +59,8 @@ class LyraTheme : public BaseTheme {
   void drawButtonMenu(GfxRenderer& renderer, Rect rect, int buttonCount, int selectedIndex,
                       const std::function<std::string(int index)>& buttonLabel,
                       const std::function<UIIcon(int index)>& rowIcon) const override;
-  void drawRecentBookCover(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
-                           const int selectorIndex, bool& coverRendered, bool& coverBufferStored, bool& bufferRestored,
-                           std::function<bool()> storeCoverBuffer) const override;
+  void drawRecentBooks(GfxRenderer& renderer, Rect rect, const std::vector<RecentBook>& recentBooks,
+                       int selectorIndex) const override;
   void drawEmptyRecents(const GfxRenderer& renderer, const Rect rect) const;
   Rect drawPopup(const GfxRenderer& renderer, const char* message) const override;
   void fillPopupProgress(const GfxRenderer& renderer, const Rect& layout, const int progress) const override;

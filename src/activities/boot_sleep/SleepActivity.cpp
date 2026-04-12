@@ -6,8 +6,8 @@
 #include <HalStorage.h>
 #include <I18n.h>
 
-#include "CrossPointSettings.h"
-#include "CrossPointState.h"
+#include "settings/CrossPointSettings.h"
+#include "state/CrossPointState.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "images/Logo120.h"

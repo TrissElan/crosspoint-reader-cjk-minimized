@@ -35,16 +35,6 @@ class CrossPointSettings {
     SLEEP_SCREEN_COVER_FILTER_COUNT
   };
 
-  // Status bar enum - legacy
-  enum STATUS_BAR_MODE {
-    NONE = 0,
-    NO_PROGRESS = 1,
-    FULL = 2,
-    BOOK_PROGRESS_BAR = 3,
-    ONLY_BOOK_PROGRESS_BAR = 4,
-    CHAPTER_PROGRESS_BAR = 5,
-    STATUS_BAR_MODE_COUNT
-  };
   enum STATUS_BAR_PROGRESS_BAR {
     BOOK_PROGRESS = 0,
     CHAPTER_PROGRESS = 1,
@@ -67,17 +57,6 @@ class CrossPointSettings {
     ORIENTATION_COUNT
   };
 
-  // Front button layout options (legacy)
-  // Default: Back, Confirm, Left, Right
-  // Swapped: Left, Right, Back, Confirm
-  enum FRONT_BUTTON_LAYOUT {
-    BACK_CONFIRM_LEFT_RIGHT = 0,
-    LEFT_RIGHT_BACK_CONFIRM = 1,
-    LEFT_BACK_CONFIRM_RIGHT = 2,
-    BACK_CONFIRM_RIGHT_LEFT = 3,
-    FRONT_BUTTON_LAYOUT_COUNT
-  };
-
   // Front button hardware identifiers (for remapping)
   enum FRONT_BUTTON_HARDWARE {
     FRONT_HW_BACK = 0,
@@ -92,8 +71,6 @@ class CrossPointSettings {
   // Swapped: Next, Previous
   enum SIDE_BUTTON_LAYOUT { PREV_NEXT = 0, NEXT_PREV = 1, SIDE_BUTTON_LAYOUT_COUNT };
 
-  // Font family options (legacy, kept for settings file compatibility)
-  enum FONT_FAMILY { BOOKERLY = 0, FONT_FAMILY_COUNT = 1 };
   enum LINE_COMPRESSION { TIGHT = 0, NORMAL = 1, WIDE = 2, LINE_COMPRESSION_COUNT };
   enum PARAGRAPH_ALIGNMENT {
     JUSTIFIED = 0,
@@ -130,9 +107,6 @@ class CrossPointSettings {
   // Hide battery percentage
   enum HIDE_BATTERY_PERCENTAGE { HIDE_NEVER = 0, HIDE_READER = 1, HIDE_ALWAYS = 2, HIDE_BATTERY_PERCENTAGE_COUNT };
 
-  // UI Theme
-  enum UI_THEME { LYRA = 0, LYRA_3_COVERS = 1 };
-
   // Image rendering in EPUB reader
   enum IMAGE_RENDERING { IMAGES_DISPLAY = 0, IMAGES_PLACEHOLDER = 1, IMAGES_SUPPRESS = 2, IMAGE_RENDERING_COUNT };
 
@@ -142,8 +116,7 @@ class CrossPointSettings {
   uint8_t sleepScreenCoverMode = FIT;
   // Sleep screen cover filter
   uint8_t sleepScreenCoverFilter = NO_FILTER;
-  // Status bar settings (statusBar retained for migration only)
-  uint8_t statusBar = FULL;
+  // Status bar settings
   uint8_t statusBarChapterPageCount = 1;
   uint8_t statusBarBookProgressPercentage = 1;
   uint8_t statusBarProgressBar = HIDE_PROGRESS;
@@ -158,8 +131,6 @@ class CrossPointSettings {
   // EPUB reading orientation settings
   // 0 = portrait (default), 1 = landscape clockwise, 2 = inverted, 3 = landscape counter-clockwise
   uint8_t orientation = PORTRAIT;
-  // Button layouts (front layout retained for migration only)
-  uint8_t frontButtonLayout = BACK_CONFIRM_LEFT_RIGHT;
   uint8_t sideButtonLayout = PREV_NEXT;
   // Front button remap (logical -> hardware)
   // Used by MappedInputManager to translate logical buttons into physical front buttons.
@@ -168,8 +139,6 @@ class CrossPointSettings {
   uint8_t frontButtonLeft = FRONT_HW_LEFT;
   uint8_t frontButtonRight = FRONT_HW_RIGHT;
   // Reader font settings
-  uint8_t fontFamily = 0;  // legacy, not used
-  uint8_t fontSize = 0;    // legacy, not used
   uint8_t lineSpacing = NORMAL;
   uint8_t paragraphAlignment = JUSTIFIED;
   // Auto-sleep timeout setting (default 10 minutes)
@@ -185,8 +154,6 @@ class CrossPointSettings {
   uint8_t hideBatteryPercentage = HIDE_NEVER;
   // Long-press chapter skip on side buttons
   uint8_t longPressChapterSkip = 1;
-  // UI Theme
-  uint8_t uiTheme = LYRA;
   // Sunlight fading compensation
   uint8_t fadingFix = 0;
   // Use book's embedded CSS styles for EPUB rendering (1 = enabled, 0 = disabled)
@@ -220,10 +187,6 @@ class CrossPointSettings {
 
   static void validateFrontButtonMapping(CrossPointSettings& settings);
 
- private:
-  bool loadFromBinaryFile();
-
- public:
   float getReaderLineCompression() const;
   unsigned long getSleepTimeoutMs() const;
   int getRefreshFrequency() const;

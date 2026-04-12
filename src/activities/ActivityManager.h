@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "GfxRenderer.h"
-#include "MappedInputManager.h"
+#include "state/MappedInputManager.h"
 
 class Activity;    // forward declaration
 class RenderLock;  // forward declaration

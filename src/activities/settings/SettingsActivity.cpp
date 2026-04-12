@@ -5,11 +5,11 @@
 
 #include "ButtonRemapActivity.h"
 #include "ClearCacheActivity.h"
-#include "CrossPointSettings.h"
+#include "settings/CrossPointSettings.h"
 #include "FontSelectionActivity.h"
 #include "LanguageSelectActivity.h"
-#include "MappedInputManager.h"
-#include "SettingsList.h"
+#include "state/MappedInputManager.h"
+#include "settings/SettingsList.h"
 #include "StatusBarSettingsActivity.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -110,7 +110,7 @@ void SettingsActivity::loop() {
       finish();
     } else {
       SETTINGS.saveToFile();
-      onGoHome();
+      activityManager.goHome();
     }
     return;
   }

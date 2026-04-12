@@ -18,7 +18,6 @@ A CJK (Korean/Japanese) font support fork of the [CrossPoint Reader](https://git
 - **WiFi file transfer**: Restored from upstream with simplified hotspot-only mode (no Join Network)
 - **Bug fixes**:
   - Settings Back button event leak to reader
-  - Theme not switching (enum value alignment)
   - Home screen Settings unreachable (menu item count off-by-one)
 
 ## Removed from Upstream
@@ -42,8 +41,8 @@ This fork is a minimal CJK-focused build. The following upstream features have b
 - **EPUB reader** — core reading, pagination, chapter navigation, TOC
 - **SD card file browser** — browse and open EPUB files
 - **WiFi file transfer** — hotspot mode, web-based file browser with upload/delete/rename
-- **Settings** — font selection (6 built-in fonts), theme, sleep timer, orientation
-- **Themes** — Lyra, Lyra 3 Covers
+- **Settings** — font selection (6 built-in fonts), sleep timer, orientation
+- **Theme** — Lyra (single theme, hardcoded)
 - **Sleep / wake** — auto and manual sleep
 - **Battery indicator**
 - **QR code display** — WiFi connection and URL QR codes

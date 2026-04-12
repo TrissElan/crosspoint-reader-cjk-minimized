@@ -119,10 +119,26 @@ void ParsedText::layoutCharacterWrap(const GfxRenderer& renderer, const int font
   const int minSpacing = spaceWidth;
   const int maxSpacing = spaceWidth + (spaceWidth / 2);  // 1.5x
 
+  std::vector<std::string> lineWordsVec;
+  std::vector<int> lineWordWidths;
+  std::vector<EpdFontFamily::Style> lineWordStylesVec;
+  std::vector<std::string> lineWords;
+  std::vector<int16_t> lineXPos;
+  std::vector<EpdFontFamily::Style> lineWordStyles;
+  lineWordsVec.reserve(32);
+  lineWordWidths.reserve(32);
+  lineWordStylesVec.reserve(32);
+  lineWords.reserve(32);
+  lineXPos.reserve(32);
+  lineWordStyles.reserve(32);
+
   while (!words.empty()) {
-    std::vector<std::string> lineWordsVec;
-    std::vector<int> lineWordWidths;
-    std::vector<EpdFontFamily::Style> lineWordStylesVec;
+    lineWordsVec.clear();
+    lineWordWidths.clear();
+    lineWordStylesVec.clear();
+    lineWords.clear();
+    lineXPos.clear();
+    lineWordStyles.clear();
 
     // Phase 1: Greedily collect words/characters to fill the line
     int totalWordWidth = 0;
@@ -276,10 +292,6 @@ void ParsedText::layoutCharacterWrap(const GfxRenderer& renderer, const int font
     // Phase 3: Calculate final positions for justified alignment
     bool isLastLine = words.empty();
     int gapCount = lineWordsVec.size() - 1;
-
-    std::vector<std::string> lineWords;
-    std::vector<int16_t> lineXPos;
-    std::vector<EpdFontFamily::Style> lineWordStyles;
 
     if (isLastLine || gapCount <= 0) {
       int xpos = 0;

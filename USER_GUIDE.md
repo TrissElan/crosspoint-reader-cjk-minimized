@@ -44,11 +44,6 @@ The device utilises the standard buttons on the Xteink X4 (in the same layout as
 
 Button layout can be customized in the **[Controls Settings](#363-controls)**.
 
-### Taking a Screenshot
-When the Power Button and Volume Down button are pressed at the same time, it will take a screenshot and save it in the folder `screenshots/`.
-
-Alternatively, while reading a book, press the **Confirm** button to open the reader menu and select **Take screenshot**.
-
 ---
 
 ## 2. Power & Startup
@@ -145,10 +140,6 @@ The Settings screen allows you to configure the device's behavior. There are a f
   - "Always" - Always hide battery percentage
 - **Refresh Frequency**: Set how often the screen does a full refresh while reading to reduce ghosting; options are every 1, 5, 10, 15, or 30 pages.
 
-- **UI Theme**: Set which UI theme to use:
-  - "Classic" - The original Crosspoint theme
-  - "Lyra" - The new theme for Crosspoint featuring rounded elements and menu icons
-  - "Lyra Extended" - Lyra, but displays 3 books instead of 1 on the **[Home Screen](#31-home-screen)**
 - **Sunlight Fading Fix**: Configure whether to enable a software-fix for the issue where white X4 models may fade when used in direct sunlight:
   - "OFF" (default) - Disable the fix
   - "ON" - Enable the fix

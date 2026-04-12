@@ -15,16 +15,15 @@
 
 #include <cstring>
 
-#include "CrossPointSettings.h"
-#include "CrossPointState.h"
-#include "MappedInputManager.h"
-#include "RecentBooksStore.h"
+#include "settings/CrossPointSettings.h"
+#include "state/CrossPointState.h"
+#include "state/MappedInputManager.h"
+#include "state/RecentBooksStore.h"
 #include "activities/Activity.h"
 #include "activities/ActivityManager.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
 #include "util/ButtonNavigator.h"
-#include "util/ScreenshotUtil.h"
 
 MappedInputManager mappedInputManager(gpio);
 GfxRenderer renderer(display);
@@ -60,55 +59,6 @@ SdFontFamily* gKopubFontFamily12 = nullptr;
 SdFont* gKopubFont14 = nullptr;
 SdFontFamily* gKopubFontFamily14 = nullptr;
 
-#include "FontManager.h"
-
-// measurement of power button press duration calibration value
-unsigned long t1 = 0;
-unsigned long t2 = 0;
-
-// Verify power button press duration on wake-up from deep sleep
-// Pre-condition: isWakeupByPowerButton() == true
-void verifyPowerButtonDuration() {
-  if (SETTINGS.shortPwrBtn == CrossPointSettings::SHORT_PWRBTN::SLEEP) {
-    // Fast path for short press
-    // Needed because inputManager.isPressed() may take up to ~500ms to return the correct state
-    return;
-  }
-
-  // Give the user up to 1000ms to start holding the power button, and must hold for SETTINGS.getPowerButtonDuration()
-  const auto start = millis();
-  bool abort = false;
-  // Subtract the current time, because inputManager only starts counting the HeldTime from the first update()
-  // This way, we remove the time we already took to reach here from the duration,
-  // assuming the button was held until now from millis()==0 (i.e. device start time).
-  const uint16_t calibration = start;
-  const uint16_t calibratedPressDuration =
-      (calibration < SETTINGS.getPowerButtonDuration()) ? SETTINGS.getPowerButtonDuration() - calibration : 1;
-
-  gpio.update();
-  // Needed because inputManager.isPressed() may take up to ~500ms to return the correct state
-  while (!gpio.isPressed(HalGPIO::BTN_POWER) && millis() - start < 1000) {
-    delay(10);  // only wait 10ms each iteration to not delay too much in case of short configured duration.
-    gpio.update();
-  }
-
-  t2 = millis();
-  if (gpio.isPressed(HalGPIO::BTN_POWER)) {
-    do {
-      delay(10);
-      gpio.update();
-    } while (gpio.isPressed(HalGPIO::BTN_POWER) && gpio.getHeldTime() < calibratedPressDuration);
-    abort = gpio.getHeldTime() < calibratedPressDuration;
-  } else {
-    abort = true;
-  }
-
-  if (abort) {
-    // Button released too early. Returning to sleep.
-    // IMPORTANT: Re-arm the wakeup trigger before sleeping again
-    powerManager.startDeepSleep(gpio);
-  }
-}
 void waitForPowerRelease() {
   gpio.update();
   while (gpio.isPressed(HalGPIO::BTN_POWER)) {
@@ -116,10 +66,6 @@ void waitForPowerRelease() {
     gpio.update();
   }
 }
-
-// ── FontManager implementation ─────────────────────────────────────────────
-GfxRenderer& getGlobalRenderer() { return renderer; }
-// ──────────────────────────────────────────────────────────────────────────
 
 // Enter deep sleep mode
 void enterDeepSleep() {
@@ -173,8 +119,6 @@ void setupDisplayAndFonts() {
 }
 
 void setup() {
-  t1 = millis();
-
   HalSystem::begin();
   gpio.begin();
   powerManager.begin();
@@ -270,42 +214,11 @@ void loop() {
     lastMemPrint = millis();
   }
 
-  // Handle incoming serial commands,
-  // nb: we use logSerial from logging to avoid deprecation warnings
-  if (logSerial.available() > 0) {
-    String line = logSerial.readStringUntil('\n');
-    if (line.startsWith("CMD:")) {
-      String cmd = line.substring(4);
-      cmd.trim();
-      if (cmd == "SCREENSHOT") {
-        const uint32_t bufferSize = display.getBufferSize();
-        logSerial.printf("SCREENSHOT_START:%d\n", bufferSize);
-        uint8_t* buf = display.getFrameBuffer();
-        logSerial.write(buf, bufferSize);
-        logSerial.printf("SCREENSHOT_END\n");
-      }
-    }
-  }
-
   // Check for any user activity (button press or release) or active background work
   static unsigned long lastActivityTime = millis();
   if (gpio.wasAnyPressed() || gpio.wasAnyReleased() || activityManager.preventAutoSleep()) {
     lastActivityTime = millis();         // Reset inactivity timer
     powerManager.setPowerSaving(false);  // Restore normal CPU frequency on user activity
-  }
-
-  static bool screenshotButtonsReleased = true;
-  if (gpio.isPressed(HalGPIO::BTN_POWER) && gpio.isPressed(HalGPIO::BTN_DOWN)) {
-    if (screenshotButtonsReleased) {
-      screenshotButtonsReleased = false;
-      {
-        RenderLock lock;
-        ScreenshotUtil::takeScreenshot(renderer);
-      }
-    }
-    return;
-  } else {
-    screenshotButtonsReleased = true;
   }
 
   const unsigned long sleepTimeoutMs = SETTINGS.getSleepTimeoutMs();
@@ -317,10 +230,6 @@ void loop() {
   }
 
   if (gpio.isPressed(HalGPIO::BTN_POWER) && gpio.getHeldTime() > SETTINGS.getPowerButtonDuration()) {
-    // If the screenshot combination is potentially being pressed, don't sleep
-    if (gpio.isPressed(HalGPIO::BTN_DOWN)) {
-      return;
-    }
     enterDeepSleep();
     // This should never be hit as `enterDeepSleep` calls esp_deep_sleep_start
     return;
