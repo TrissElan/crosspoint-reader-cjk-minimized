@@ -29,8 +29,6 @@ class ChapterHtmlSlimParser {
   std::function<void()> popupFn;  // Popup callback
   int depth = 0;
   int skipUntilDepth = INT_MAX;
-  int boldUntilDepth = INT_MAX;
-  int italicUntilDepth = INT_MAX;
   int underlineUntilDepth = INT_MAX;
   // buffer for building up words from characters, will auto break if longer than this
   // leave one char at end for null pointer
@@ -58,14 +56,10 @@ class ChapterHtmlSlimParser {
   // Style tracking (replaces depth-based approach)
   struct StyleStackEntry {
     int depth = 0;
-    bool hasBold = false, bold = false;
-    bool hasItalic = false, italic = false;
     bool hasUnderline = false, underline = false;
   };
   std::vector<StyleStackEntry> inlineStyleStack;
   CssStyle currentCssStyle;
-  bool effectiveBold = false;
-  bool effectiveItalic = false;
   bool effectiveUnderline = false;
   int tableDepth = 0;
   int tableRowIndex = 0;

@@ -173,34 +173,6 @@ CssTextAlign CssParser::interpretAlignment(const std::string& val) {
   return CssTextAlign::Left;
 }
 
-CssFontStyle CssParser::interpretFontStyle(const std::string& val) {
-  const std::string v = normalized(val);
-
-  if (v == "italic" || v == "oblique") return CssFontStyle::Italic;
-  return CssFontStyle::Normal;
-}
-
-CssFontWeight CssParser::interpretFontWeight(const std::string& val) {
-  const std::string v = normalized(val);
-
-  // Named values
-  if (v == "bold" || v == "bolder") return CssFontWeight::Bold;
-  if (v == "normal" || v == "lighter") return CssFontWeight::Normal;
-
-  // Numeric values: 100-900
-  // CSS spec: 400 = normal, 700 = bold
-  // We use: 0-400 = normal, 700+ = bold, 500-600 = normal (conservative)
-  char* endPtr = nullptr;
-  const long numericWeight = std::strtol(v.c_str(), &endPtr, 10);
-
-  // If we parsed a number and consumed the whole string
-  if (endPtr != v.c_str() && *endPtr == '\0') {
-    return numericWeight >= 700 ? CssFontWeight::Bold : CssFontWeight::Normal;
-  }
-
-  return CssFontWeight::Normal;
-}
-
 CssTextDecoration CssParser::interpretDecoration(const std::string& val) {
   const std::string v = normalized(val);
 
@@ -273,12 +245,6 @@ void CssParser::parseDeclarationIntoStyle(const std::string& decl, CssStyle& sty
   if (propNameBuf == "text-align") {
     style.textAlign = interpretAlignment(propValueBuf);
     style.defined.textAlign = 1;
-  } else if (propNameBuf == "font-style") {
-    style.fontStyle = interpretFontStyle(propValueBuf);
-    style.defined.fontStyle = 1;
-  } else if (propNameBuf == "font-weight") {
-    style.fontWeight = interpretFontWeight(propValueBuf);
-    style.defined.fontWeight = 1;
   } else if (propNameBuf == "text-decoration" || propNameBuf == "text-decoration-line") {
     style.textDecoration = interpretDecoration(propValueBuf);
     style.defined.textDecoration = 1;
@@ -698,8 +664,6 @@ bool CssParser::saveToCache() const {
     // Write CssStyle fields (all are POD types)
     const CssStyle& style = pair.second;
     file.write(static_cast<uint8_t>(style.textAlign));
-    file.write(static_cast<uint8_t>(style.fontStyle));
-    file.write(static_cast<uint8_t>(style.fontWeight));
     file.write(static_cast<uint8_t>(style.textDecoration));
 
     // Write CssLength fields (value + unit)
@@ -724,21 +688,19 @@ bool CssParser::saveToCache() const {
     // Write defined flags as uint16_t
     uint16_t definedBits = 0;
     if (style.defined.textAlign) definedBits |= 1 << 0;
-    if (style.defined.fontStyle) definedBits |= 1 << 1;
-    if (style.defined.fontWeight) definedBits |= 1 << 2;
-    if (style.defined.textDecoration) definedBits |= 1 << 3;
-    if (style.defined.textIndent) definedBits |= 1 << 4;
-    if (style.defined.marginTop) definedBits |= 1 << 5;
-    if (style.defined.marginBottom) definedBits |= 1 << 6;
-    if (style.defined.marginLeft) definedBits |= 1 << 7;
-    if (style.defined.marginRight) definedBits |= 1 << 8;
-    if (style.defined.paddingTop) definedBits |= 1 << 9;
-    if (style.defined.paddingBottom) definedBits |= 1 << 10;
-    if (style.defined.paddingLeft) definedBits |= 1 << 11;
-    if (style.defined.paddingRight) definedBits |= 1 << 12;
-    if (style.defined.imageHeight) definedBits |= 1 << 13;
-    if (style.defined.imageWidth) definedBits |= 1 << 14;
-    if (style.defined.display) definedBits |= 1 << 15;
+    if (style.defined.textDecoration) definedBits |= 1 << 1;
+    if (style.defined.textIndent) definedBits |= 1 << 2;
+    if (style.defined.marginTop) definedBits |= 1 << 3;
+    if (style.defined.marginBottom) definedBits |= 1 << 4;
+    if (style.defined.marginLeft) definedBits |= 1 << 5;
+    if (style.defined.marginRight) definedBits |= 1 << 6;
+    if (style.defined.paddingTop) definedBits |= 1 << 7;
+    if (style.defined.paddingBottom) definedBits |= 1 << 8;
+    if (style.defined.paddingLeft) definedBits |= 1 << 9;
+    if (style.defined.paddingRight) definedBits |= 1 << 10;
+    if (style.defined.imageHeight) definedBits |= 1 << 11;
+    if (style.defined.imageWidth) definedBits |= 1 << 12;
+    if (style.defined.display) definedBits |= 1 << 13;
     file.write(reinterpret_cast<const uint8_t*>(&definedBits), sizeof(definedBits));
   }
 
@@ -789,7 +751,7 @@ bool CssParser::loadFromCache() {
   constexpr size_t CSS_LENGTH_FIELD_COUNT = 11;
   constexpr size_t CSS_LENGTH_BYTES = sizeof(float) + sizeof(uint8_t);
   constexpr size_t CSS_FIXED_STYLE_BYTES =
-      4 * sizeof(uint8_t) + (CSS_LENGTH_FIELD_COUNT * CSS_LENGTH_BYTES) + sizeof(uint8_t) + sizeof(uint16_t);
+      2 * sizeof(uint8_t) + (CSS_LENGTH_FIELD_COUNT * CSS_LENGTH_BYTES) + sizeof(uint8_t) + sizeof(uint16_t);
 
   // Read each rule
   for (uint16_t i = 0; i < ruleCount; ++i) {
@@ -837,18 +799,6 @@ bool CssParser::loadFromCache() {
       rulesBySelector_.clear();
       return false;
     }
-    style.fontStyle = static_cast<CssFontStyle>(enumVal);
-
-    if (file.read(&enumVal, 1) != 1) {
-      rulesBySelector_.clear();
-      return false;
-    }
-    style.fontWeight = static_cast<CssFontWeight>(enumVal);
-
-    if (file.read(&enumVal, 1) != 1) {
-      rulesBySelector_.clear();
-      return false;
-    }
     style.textDecoration = static_cast<CssTextDecoration>(enumVal);
 
     // Read CssLength fields
@@ -887,21 +837,19 @@ bool CssParser::loadFromCache() {
       return false;
     }
     style.defined.textAlign = (definedBits & 1 << 0) != 0;
-    style.defined.fontStyle = (definedBits & 1 << 1) != 0;
-    style.defined.fontWeight = (definedBits & 1 << 2) != 0;
-    style.defined.textDecoration = (definedBits & 1 << 3) != 0;
-    style.defined.textIndent = (definedBits & 1 << 4) != 0;
-    style.defined.marginTop = (definedBits & 1 << 5) != 0;
-    style.defined.marginBottom = (definedBits & 1 << 6) != 0;
-    style.defined.marginLeft = (definedBits & 1 << 7) != 0;
-    style.defined.marginRight = (definedBits & 1 << 8) != 0;
-    style.defined.paddingTop = (definedBits & 1 << 9) != 0;
-    style.defined.paddingBottom = (definedBits & 1 << 10) != 0;
-    style.defined.paddingLeft = (definedBits & 1 << 11) != 0;
-    style.defined.paddingRight = (definedBits & 1 << 12) != 0;
-    style.defined.imageHeight = (definedBits & 1 << 13) != 0;
-    style.defined.imageWidth = (definedBits & 1 << 14) != 0;
-    style.defined.display = (definedBits & 1 << 15) != 0;
+    style.defined.textDecoration = (definedBits & 1 << 1) != 0;
+    style.defined.textIndent = (definedBits & 1 << 2) != 0;
+    style.defined.marginTop = (definedBits & 1 << 3) != 0;
+    style.defined.marginBottom = (definedBits & 1 << 4) != 0;
+    style.defined.marginLeft = (definedBits & 1 << 5) != 0;
+    style.defined.marginRight = (definedBits & 1 << 6) != 0;
+    style.defined.paddingTop = (definedBits & 1 << 7) != 0;
+    style.defined.paddingBottom = (definedBits & 1 << 8) != 0;
+    style.defined.paddingLeft = (definedBits & 1 << 9) != 0;
+    style.defined.paddingRight = (definedBits & 1 << 10) != 0;
+    style.defined.imageHeight = (definedBits & 1 << 11) != 0;
+    style.defined.imageWidth = (definedBits & 1 << 12) != 0;
+    style.defined.display = (definedBits & 1 << 13) != 0;
 
     rulesBySelector_[selector] = style;
   }

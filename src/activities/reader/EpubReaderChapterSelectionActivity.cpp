@@ -108,8 +108,8 @@ void EpubReaderChapterSelectionActivity::render(RenderLock&&) {
 
     // Manual centering to honor content gutters.
     const int titleX =
-        contentX + (contentWidth - renderer.getTextWidth(UI_12_FONT_ID, tr(STR_SELECT_CHAPTER), EpdFontFamily::BOLD)) / 2;
-    renderer.drawText(UI_12_FONT_ID, titleX, 15 + contentY, tr(STR_SELECT_CHAPTER), true, EpdFontFamily::BOLD);
+        contentX + (contentWidth - renderer.getTextWidth(UI_12_FONT_ID, tr(STR_SELECT_CHAPTER))) / 2;
+    renderer.drawText(UI_12_FONT_ID, titleX, 15 + contentY, tr(STR_SELECT_CHAPTER), true);
 
     const auto pageStartIndex = selectorIndex / pageItems * pageItems;
     // Highlight only the content area, not the hint gutters.

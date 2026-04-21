@@ -45,12 +45,6 @@ struct CssLength {
   }
 };
 
-// Font style options matching CSS font-style property
-enum class CssFontStyle : uint8_t { Normal = 0, Italic = 1 };
-
-// Font weight options - CSS supports 100-900, we simplify to normal/bold
-enum class CssFontWeight : uint8_t { Normal = 0, Bold = 1 };
-
 // Text decoration options
 enum class CssTextDecoration : uint8_t { None = 0, Underline = 1 };
 
@@ -60,8 +54,6 @@ enum class CssDisplay : uint8_t { Block = 0, None = 1 };
 // Bitmask for tracking which properties have been explicitly set
 struct CssPropertyFlags {
   uint16_t textAlign : 1;
-  uint16_t fontStyle : 1;
-  uint16_t fontWeight : 1;
   uint16_t textDecoration : 1;
   uint16_t textIndent : 1;
   uint16_t marginTop : 1;
@@ -78,8 +70,6 @@ struct CssPropertyFlags {
 
   CssPropertyFlags()
       : textAlign(0),
-        fontStyle(0),
-        fontWeight(0),
         textDecoration(0),
         textIndent(0),
         marginTop(0),
@@ -95,13 +85,12 @@ struct CssPropertyFlags {
         display(0) {}
 
   [[nodiscard]] bool anySet() const {
-    return textAlign || fontStyle || fontWeight || textDecoration || textIndent || marginTop || marginBottom ||
-           marginLeft || marginRight || paddingTop || paddingBottom || paddingLeft || paddingRight || imageHeight ||
-           imageWidth || display;
+    return textAlign || textDecoration || textIndent || marginTop || marginBottom || marginLeft || marginRight ||
+           paddingTop || paddingBottom || paddingLeft || paddingRight || imageHeight || imageWidth || display;
   }
 
   void clearAll() {
-    textAlign = fontStyle = fontWeight = textDecoration = textIndent = 0;
+    textAlign = textDecoration = textIndent = 0;
     marginTop = marginBottom = marginLeft = marginRight = 0;
     paddingTop = paddingBottom = paddingLeft = paddingRight = 0;
     imageHeight = imageWidth = display = 0;
@@ -113,8 +102,6 @@ struct CssPropertyFlags {
 // Length values are stored as CssLength (value + unit) for deferred resolution
 struct CssStyle {
   CssTextAlign textAlign = CssTextAlign::Left;
-  CssFontStyle fontStyle = CssFontStyle::Normal;
-  CssFontWeight fontWeight = CssFontWeight::Normal;
   CssTextDecoration textDecoration = CssTextDecoration::None;
 
   CssLength textIndent;     // First-line indent (deferred resolution)
@@ -138,14 +125,6 @@ struct CssStyle {
     if (base.hasTextAlign()) {
       textAlign = base.textAlign;
       defined.textAlign = 1;
-    }
-    if (base.hasFontStyle()) {
-      fontStyle = base.fontStyle;
-      defined.fontStyle = 1;
-    }
-    if (base.hasFontWeight()) {
-      fontWeight = base.fontWeight;
-      defined.fontWeight = 1;
     }
     if (base.hasTextDecoration()) {
       textDecoration = base.textDecoration;
@@ -202,8 +181,6 @@ struct CssStyle {
   }
 
   [[nodiscard]] bool hasTextAlign() const { return defined.textAlign; }
-  [[nodiscard]] bool hasFontStyle() const { return defined.fontStyle; }
-  [[nodiscard]] bool hasFontWeight() const { return defined.fontWeight; }
   [[nodiscard]] bool hasTextDecoration() const { return defined.textDecoration; }
   [[nodiscard]] bool hasTextIndent() const { return defined.textIndent; }
   [[nodiscard]] bool hasMarginTop() const { return defined.marginTop; }
@@ -220,8 +197,6 @@ struct CssStyle {
 
   void reset() {
     textAlign = CssTextAlign::Left;
-    fontStyle = CssFontStyle::Normal;
-    fontWeight = CssFontWeight::Normal;
     textDecoration = CssTextDecoration::None;
     textIndent = CssLength{};
     marginTop = marginBottom = marginLeft = marginRight = CssLength{};

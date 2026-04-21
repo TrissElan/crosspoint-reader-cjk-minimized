@@ -281,14 +281,13 @@ void BaseTheme::drawHeader(const GfxRenderer& renderer, Rect rect, const char* t
   if (title) {
     int padding = rect.width - batteryX + BaseMetrics::values.batteryWidth;
     auto truncatedTitle = renderer.truncatedText(UI_12_FONT_ID, title,
-                                                 rect.width - padding * 2 - BaseMetrics::values.contentSidePadding * 2,
-                                                 EpdFontFamily::BOLD);
-    renderer.drawCenteredText(UI_12_FONT_ID, rect.y + 5, truncatedTitle.c_str(), true, EpdFontFamily::BOLD);
+                                                 rect.width - padding * 2 - BaseMetrics::values.contentSidePadding * 2);
+    renderer.drawCenteredText(UI_12_FONT_ID, rect.y + 5, truncatedTitle.c_str(), true);
   }
 
   if (subtitle) {
     auto truncatedSubtitle = renderer.truncatedText(
-        UI_12_FONT_ID, subtitle, rect.width - BaseMetrics::values.contentSidePadding * 2, EpdFontFamily::REGULAR);
+        UI_12_FONT_ID, subtitle, rect.width - BaseMetrics::values.contentSidePadding * 2);
     int truncatedSubtitleWidth = renderer.getTextWidth(UI_12_FONT_ID, truncatedSubtitle.c_str());
     renderer.drawText(UI_12_FONT_ID,
                       rect.x + rect.width - BaseMetrics::values.contentSidePadding - truncatedSubtitleWidth, subtitleY,
@@ -305,7 +304,7 @@ void BaseTheme::drawSubHeader(const GfxRenderer& renderer, Rect rect, const char
   int rightSpace = BaseMetrics::values.contentSidePadding;
   if (rightLabel) {
     auto truncatedRightLabel =
-        renderer.truncatedText(UI_12_FONT_ID, rightLabel, maxListValueWidth, EpdFontFamily::REGULAR);
+        renderer.truncatedText(UI_12_FONT_ID, rightLabel, maxListValueWidth);
     int rightLabelWidth = renderer.getTextWidth(UI_12_FONT_ID, truncatedRightLabel.c_str());
     renderer.drawText(UI_12_FONT_ID, rect.x + rect.width - BaseMetrics::values.contentSidePadding - rightLabelWidth,
                       rect.y + 7, truncatedRightLabel.c_str());
@@ -313,8 +312,8 @@ void BaseTheme::drawSubHeader(const GfxRenderer& renderer, Rect rect, const char
   }
 
   auto truncatedLabel = renderer.truncatedText(
-      UI_12_FONT_ID, label, rect.width - BaseMetrics::values.contentSidePadding - rightSpace, EpdFontFamily::REGULAR);
-  renderer.drawText(UI_12_FONT_ID, currentX, rect.y, truncatedLabel.c_str(), true, EpdFontFamily::REGULAR);
+      UI_12_FONT_ID, label, rect.width - BaseMetrics::values.contentSidePadding - rightSpace);
+  renderer.drawText(UI_12_FONT_ID, currentX, rect.y, truncatedLabel.c_str(), true);
 }
 
 void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const std::vector<TabInfo>& tabs,
@@ -327,8 +326,7 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
   int currentX = rect.x + BaseMetrics::values.contentSidePadding;
 
   for (const auto& tab : tabs) {
-    const int textWidth =
-        renderer.getTextWidth(UI_12_FONT_ID, tab.label, tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+    const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, tab.label);
 
     // Draw underline for selected tab
     if (tab.selected) {
@@ -340,8 +338,7 @@ void BaseTheme::drawTabBar(const GfxRenderer& renderer, const Rect rect, const s
     }
 
     // Draw tab label
-    renderer.drawText(UI_12_FONT_ID, currentX, rect.y, tab.label, !(tab.selected && selected),
-                      tab.selected ? EpdFontFamily::BOLD : EpdFontFamily::REGULAR);
+    renderer.drawText(UI_12_FONT_ID, currentX, rect.y, tab.label, !(tab.selected && selected));
 
     currentX += textWidth + BaseMetrics::values.tabSpacing;
   }
@@ -370,8 +367,8 @@ void BaseTheme::drawRecentBooks(GfxRenderer& renderer, Rect rect, const std::vec
     const bool authorEmpty = recentBooks[i].author.empty();
     const int totalH = authorEmpty ? lineH : lineH * 2 + 4;
     const int textY = entryY + (entryHeight - totalH) / 2;
-    auto title = renderer.truncatedText(UI_12_FONT_ID, recentBooks[i].title.c_str(), textWidth, EpdFontFamily::BOLD);
-    renderer.drawText(UI_12_FONT_ID, textX, textY, title.c_str(), !selected, EpdFontFamily::BOLD);
+    auto title = renderer.truncatedText(UI_12_FONT_ID, recentBooks[i].title.c_str(), textWidth);
+    renderer.drawText(UI_12_FONT_ID, textX, textY, title.c_str(), !selected);
     if (!authorEmpty) {
       auto author = renderer.truncatedText(UI_12_FONT_ID, recentBooks[i].author.c_str(), textWidth);
       renderer.drawText(UI_12_FONT_ID, textX, textY + lineH + 4, author.c_str(), !selected);
@@ -412,7 +409,7 @@ Rect BaseTheme::drawPopup(const GfxRenderer& renderer, const char* message) cons
   constexpr int margin = 15;
   // Scale y position proportionally to screen height (7.5% from top)
   const int y = static_cast<int>(renderer.getScreenHeight() * 0.075f);
-  const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, message, EpdFontFamily::BOLD);
+  const int textWidth = renderer.getTextWidth(UI_12_FONT_ID, message);
   const int textHeight = renderer.getLineHeight(UI_12_FONT_ID);
   const int w = textWidth + margin * 2;
   const int h = textHeight + margin * 2;
@@ -423,7 +420,7 @@ Rect BaseTheme::drawPopup(const GfxRenderer& renderer, const char* message) cons
 
   const int textX = x + (w - textWidth) / 2;
   const int textY = y + margin - 2;
-  renderer.drawText(UI_12_FONT_ID, textX, textY, message, true, EpdFontFamily::BOLD);
+  renderer.drawText(UI_12_FONT_ID, textX, textY, message, true);
   renderer.displayBuffer();
   return Rect{x, y, w, h};
 }
@@ -539,7 +536,7 @@ void BaseTheme::drawStatusBar(GfxRenderer& renderer, const float bookProgress, c
 void BaseTheme::drawHelpText(const GfxRenderer& renderer, Rect rect, const char* label) const {
   const auto& metrics = UITheme::getInstance().getMetrics();
   auto truncatedLabel =
-      renderer.truncatedText(UI_12_FONT_ID, label, rect.width - metrics.contentSidePadding * 2, EpdFontFamily::REGULAR);
+      renderer.truncatedText(UI_12_FONT_ID, label, rect.width - metrics.contentSidePadding * 2);
   renderer.drawCenteredText(UI_12_FONT_ID, rect.y, truncatedLabel.c_str());
 }
 

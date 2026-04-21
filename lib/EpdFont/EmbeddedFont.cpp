@@ -1,4 +1,4 @@
-#include "SdFont.h"
+#include "EmbeddedFont.h"
 
 #include <Arduino.h>
 #include <HardwareSerial.h>
@@ -46,40 +46,40 @@ void GlyphMetadataCache::clear() {
 }
 
 // ============================================================================
-// SdFontData Implementation (Flash-only, zero-copy)
+// EmbeddedFontData Implementation (Flash-only, zero-copy)
 // ============================================================================
 
 // Maximum reasonable values for validation
 static constexpr uint32_t MAX_INTERVAL_COUNT = 10000;
 static constexpr uint32_t MAX_GLYPH_COUNT = 150000;
 
-SdFontData::SdFontData(const uint8_t* data, size_t size)
+EmbeddedFontData::EmbeddedFontData(const uint8_t* data, size_t size)
     : loaded(false), memData(data), memSize(size), intervals(nullptr) {
   memset(&header, 0, sizeof(header));
 }
 
-bool SdFontData::load() {
+bool EmbeddedFontData::load() {
   if (loaded) {
     return true;
   }
 
   if (memData == nullptr || memSize < sizeof(EpdFontHeader)) {
-    Serial.printf("[%lu] [SdFont] Flash data null or too small\n", millis());
+    Serial.printf("[%lu] [EmbeddedFont] Flash data null or too small\n", millis());
     return false;
   }
 
   memcpy(&header, memData, sizeof(EpdFontHeader));
 
   if (header.magic != EPDFONT_MAGIC) {
-    Serial.printf("[%lu] [SdFont] Invalid magic 0x%08X\n", millis(), header.magic);
+    Serial.printf("[%lu] [EmbeddedFont] Invalid magic 0x%08X\n", millis(), header.magic);
     return false;
   }
   if (header.version != EPDFONT_VERSION) {
-    Serial.printf("[%lu] [SdFont] Bad version %u\n", millis(), header.version);
+    Serial.printf("[%lu] [EmbeddedFont] Bad version %u\n", millis(), header.version);
     return false;
   }
   if (header.intervalCount > MAX_INTERVAL_COUNT || header.glyphCount > MAX_GLYPH_COUNT) {
-    Serial.printf("[%lu] [SdFont] Header values out of range\n", millis());
+    Serial.printf("[%lu] [EmbeddedFont] Header values out of range\n", millis());
     return false;
   }
 
@@ -87,12 +87,12 @@ bool SdFontData::load() {
   intervals = reinterpret_cast<const EpdFontInterval*>(memData + header.intervalsOffset);
 
   loaded = true;
-  Serial.printf("[%lu] [SdFont] Loaded from Flash (zero-copy): advanceY=%u glyphs=%u\n", millis(),
+  Serial.printf("[%lu] [EmbeddedFont] Loaded from Flash (zero-copy): advanceY=%u glyphs=%u\n", millis(),
                 header.advanceY, header.glyphCount);
   return true;
 }
 
-bool SdFontData::loadGlyph(int glyphIndex, EpdGlyph* outGlyph) const {
+bool EmbeddedFontData::loadGlyph(int glyphIndex, EpdGlyph* outGlyph) const {
   if (!loaded || glyphIndex < 0 || glyphIndex >= static_cast<int>(header.glyphCount)) {
     return false;
   }
@@ -116,7 +116,7 @@ bool SdFontData::loadGlyph(int glyphIndex, EpdGlyph* outGlyph) const {
   return true;
 }
 
-int SdFontData::findGlyphIndex(uint32_t codepoint) const {
+int EmbeddedFontData::findGlyphIndex(uint32_t codepoint) const {
   if (!loaded || intervals == nullptr) {
     return -1;
   }
@@ -140,7 +140,7 @@ int SdFontData::findGlyphIndex(uint32_t codepoint) const {
   return -1;
 }
 
-const EpdGlyph* SdFontData::getGlyph(uint32_t codepoint) const {
+const EpdGlyph* EmbeddedFontData::getGlyph(uint32_t codepoint) const {
   if (!loaded) {
     return nullptr;
   }
@@ -163,7 +163,7 @@ const EpdGlyph* SdFontData::getGlyph(uint32_t codepoint) const {
   return glyphCache.put(codepoint, glyph);
 }
 
-const uint8_t* SdFontData::getGlyphBitmap(uint32_t codepoint) const {
+const uint8_t* EmbeddedFontData::getGlyphBitmap(uint32_t codepoint) const {
   if (!loaded) {
     return nullptr;
   }
@@ -195,27 +195,27 @@ const uint8_t* SdFontData::getGlyphBitmap(uint32_t codepoint) const {
 }
 
 // ============================================================================
-// SdFont Implementation
+// EmbeddedFont Implementation
 // ============================================================================
 
-SdFont::SdFont(SdFontData* fontData, bool takeOwnership) : data(fontData), ownsData(takeOwnership) {}
+EmbeddedFont::EmbeddedFont(EmbeddedFontData* fontData, bool takeOwnership) : data(fontData), ownsData(takeOwnership) {}
 
-SdFont::SdFont(const uint8_t* memPtr, size_t memSz) : data(new SdFontData(memPtr, memSz)), ownsData(true) {}
+EmbeddedFont::EmbeddedFont(const uint8_t* memPtr, size_t memSz) : data(new EmbeddedFontData(memPtr, memSz)), ownsData(true) {}
 
-SdFont::~SdFont() {
+EmbeddedFont::~EmbeddedFont() {
   if (ownsData) {
     delete data;
   }
 }
 
-bool SdFont::load() {
+bool EmbeddedFont::load() {
   if (data == nullptr) {
     return false;
   }
   return data->load();
 }
 
-void SdFont::getTextDimensions(const char* string, int* w, int* h) const {
+void EmbeddedFont::getTextDimensions(const char* string, int* w, int* h) const {
   *w = 0;
   *h = 0;
 
@@ -248,20 +248,20 @@ void SdFont::getTextDimensions(const char* string, int* w, int* h) const {
   *h = maxY - minY;
 }
 
-bool SdFont::hasPrintableChars(const char* string) const {
+bool EmbeddedFont::hasPrintableChars(const char* string) const {
   int w = 0, h = 0;
   getTextDimensions(string, &w, &h);
   return w > 0 || h > 0;
 }
 
-const EpdGlyph* SdFont::getGlyph(uint32_t cp) const {
+const EpdGlyph* EmbeddedFont::getGlyph(uint32_t cp) const {
   if (data == nullptr) {
     return nullptr;
   }
   return data->getGlyph(cp);
 }
 
-const uint8_t* SdFont::getGlyphBitmap(uint32_t cp) const {
+const uint8_t* EmbeddedFont::getGlyphBitmap(uint32_t cp) const {
   if (data == nullptr) {
     return nullptr;
   }

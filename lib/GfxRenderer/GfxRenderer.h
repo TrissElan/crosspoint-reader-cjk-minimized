@@ -2,7 +2,7 @@
 
 #include <EpdFontFamily.h>
 #include <HalDisplay.h>
-#include <SdFontFamily.h>
+#include <EmbeddedFontFamily.h>
 
 #include <cstring>
 #include <string>
@@ -41,10 +41,9 @@ class GfxRenderer {
   uint32_t frameBufferSize = HalDisplay::BUFFER_SIZE;
   std::vector<uint8_t*> bwBufferChunks;
   std::unordered_map<int, EpdFontFamily> fontMap;
-  std::unordered_map<int, SdFontFamily*> sdFontMap;  // GfxRenderer owns these
+  std::unordered_map<int, EmbeddedFontFamily*> embeddedFontMap;  // GfxRenderer owns these
 
-  void renderChar(const EpdFontFamily& fontFamily, uint32_t cp, int* x, int* y, bool pixelState,
-                  EpdFontFamily::Style style) const;
+  void renderChar(const EpdFontFamily& fontFamily, uint32_t cp, int* x, int* y, bool pixelState) const;
   void freeBwBufferChunks();
   template <Color color>
   void drawPixelDither(int x, int y) const;
@@ -56,7 +55,7 @@ class GfxRenderer {
       : display(halDisplay), renderMode(BW), orientation(Portrait), fadingFix(false) {}
   ~GfxRenderer() {
     freeBwBufferChunks();
-    for (auto& kv : sdFontMap) delete kv.second;
+    for (auto& kv : embeddedFontMap) delete kv.second;
   }
 
   static constexpr int VIEWABLE_MARGIN_TOP = 9;
@@ -67,8 +66,8 @@ class GfxRenderer {
   // Setup
   void begin();  // must be called right after display.begin()
   void insertFont(int fontId, EpdFontFamily font);
-  // Insert SD card font (takes ownership). If setSdFallback=true, also sets as SD fallback.
-  void insertSdFont(int fontId, SdFontFamily* font);
+  // Insert embedded font (takes ownership). If setSdFallback=true, also sets as embedded fallback.
+  void insertEmbeddedFont(int fontId, EmbeddedFontFamily* font);
   bool hasFont(int fontId) const;
   void removeFont(int fontId);
   const std::unordered_map<int, EpdFontFamily>& getFontMap() const { return fontMap; }
@@ -113,32 +112,27 @@ class GfxRenderer {
   void fillPolygon(const int* xPoints, const int* yPoints, int numPoints, bool state = true) const;
 
   // Text
-  int getTextWidth(int fontId, const char* text, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
-  void drawCenteredText(int fontId, int y, const char* text, bool black = true,
-                        EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
-  void drawText(int fontId, int x, int y, const char* text, bool black = true,
-                EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
-  int getSpaceWidth(int fontId, EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  int getTextWidth(int fontId, const char* text) const;
+  void drawCenteredText(int fontId, int y, const char* text, bool black = true) const;
+  void drawText(int fontId, int x, int y, const char* text, bool black = true) const;
+  int getSpaceWidth(int fontId) const;
   /// Returns the total inter-word advance: fp4::toPixel(spaceAdvance + kern(leftCp,' ') + kern(' ',rightCp)).
   /// Using a single snap avoids the +/-1 px rounding error that arises when space advance and kern are
   /// snapped separately and then added as integers.
-  int getSpaceAdvance(int fontId, uint32_t leftCp, uint32_t rightCp, EpdFontFamily::Style style) const;
+  int getSpaceAdvance(int fontId, uint32_t leftCp, uint32_t rightCp) const;
   /// Returns the kerning adjustment between two adjacent codepoints.
-  int getKerning(int fontId, uint32_t leftCp, uint32_t rightCp, EpdFontFamily::Style style) const;
-  int getTextAdvanceX(int fontId, const char* text, EpdFontFamily::Style style) const;
+  int getKerning(int fontId, uint32_t leftCp, uint32_t rightCp) const;
+  int getTextAdvanceX(int fontId, const char* text) const;
   int getFontAscenderSize(int fontId) const;
   int getLineHeight(int fontId) const;
-  std::string truncatedText(int fontId, const char* text, int maxWidth,
-                            EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  std::string truncatedText(int fontId, const char* text, int maxWidth) const;
   /// Word-wrap \p text into at most \p maxLines lines, each no wider than
   /// \p maxWidth pixels. Overflowing words and excess lines are UTF-8-safely
   /// truncated with an ellipsis (U+2026).
-  std::vector<std::string> wrappedText(int fontId, const char* text, int maxWidth, int maxLines,
-                                       EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  std::vector<std::string> wrappedText(int fontId, const char* text, int maxWidth, int maxLines) const;
 
   // Helper for drawing rotated text (90 degrees clockwise, for side buttons)
-  void drawTextRotated90CW(int fontId, int x, int y, const char* text, bool black = true,
-                           EpdFontFamily::Style style = EpdFontFamily::REGULAR) const;
+  void drawTextRotated90CW(int fontId, int x, int y, const char* text, bool black = true) const;
   int getTextHeight(int fontId) const;
 
   // Grayscale functions

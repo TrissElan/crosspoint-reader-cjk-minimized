@@ -4,7 +4,7 @@
 #include <cstring>
 
 #include "EpdFontData.h"
-#include "SdFontFormat.h"
+#include "EmbeddedFontFormat.h"
 
 /**
  * Simple fixed-size cache for glyph metadata (EpdGlyph) loaded on-demand.
@@ -36,7 +36,7 @@ class GlyphMetadataCache {
   void clear();
 };
 
-class SdFontData {
+class EmbeddedFontData {
  private:
   bool loaded;
 
@@ -59,12 +59,12 @@ class SdFontData {
 
  public:
   // Constructor for memory-resident (Flash-embedded) font data
-  SdFontData(const uint8_t* data, size_t size);
-  ~SdFontData() = default;
+  EmbeddedFontData(const uint8_t* data, size_t size);
+  ~EmbeddedFontData() = default;
 
   // Disable copy to prevent resource issues
-  SdFontData(const SdFontData&) = delete;
-  SdFontData& operator=(const SdFontData&) = delete;
+  EmbeddedFontData(const EmbeddedFontData&) = delete;
+  EmbeddedFontData& operator=(const EmbeddedFontData&) = delete;
 
   // Load font header and metadata
   bool load();
@@ -86,22 +86,22 @@ class SdFontData {
 };
 
 /**
- * SD Card font class - similar interface to EpdFont but loads from SD card.
+ * Embedded font class - similar interface to EpdFont but loads from embedded Flash memory.
  */
-class SdFont {
+class EmbeddedFont {
  private:
-  SdFontData* data;
+  EmbeddedFontData* data;
   bool ownsData;
 
  public:
-  explicit SdFont(SdFontData* fontData, bool takeOwnership = false);
+  explicit EmbeddedFont(EmbeddedFontData* fontData, bool takeOwnership = false);
   // Constructor for Flash-embedded font data
-  SdFont(const uint8_t* data, size_t size);
-  ~SdFont();
+  EmbeddedFont(const uint8_t* data, size_t size);
+  ~EmbeddedFont();
 
   // Disable copy
-  SdFont(const SdFont&) = delete;
-  SdFont& operator=(const SdFont&) = delete;
+  EmbeddedFont(const EmbeddedFont&) = delete;
+  EmbeddedFont& operator=(const EmbeddedFont&) = delete;
 
   bool load();
   bool isLoaded() const { return data && data->isLoaded(); }
@@ -118,5 +118,5 @@ class SdFont {
   int8_t getDescender() const { return data ? data->getDescender() : 0; }
   bool is2Bit() const { return data ? data->is2Bit() : false; }
 
-  SdFontData* getData() const { return data; }
+  EmbeddedFontData* getData() const { return data; }
 };

@@ -1,7 +1,7 @@
 /**
  * .epdfont Binary Font Format Specification
  *
- * This format is designed for on-demand loading from SD card
+ * This format is designed for embedded (Flash) loading
  * with minimal RAM usage on embedded devices.
  *
  * File Layout:

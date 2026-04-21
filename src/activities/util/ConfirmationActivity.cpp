@@ -16,10 +16,10 @@ void ConfirmationActivity::onEnter() {
   const int maxWidth = renderer.getScreenWidth() - (margin * 2);
 
   if (!heading.empty()) {
-    safeHeading = renderer.truncatedText(fontId, heading.c_str(), maxWidth, EpdFontFamily::BOLD);
+    safeHeading = renderer.truncatedText(fontId, heading.c_str(), maxWidth);
   }
   if (!body.empty()) {
-    safeBody = renderer.truncatedText(fontId, body.c_str(), maxWidth, EpdFontFamily::REGULAR);
+    safeBody = renderer.truncatedText(fontId, body.c_str(), maxWidth);
   }
 
   int totalHeight = 0;
@@ -40,13 +40,13 @@ void ConfirmationActivity::render(RenderLock&& lock) {
     LOG_DBG("CONF", "currentY: %d", currentY);
     // Draw Heading
     if (!safeHeading.empty()) {
-      renderer.drawCenteredText(fontId, currentY, safeHeading.c_str(), true, EpdFontFamily::BOLD);
+      renderer.drawCenteredText(fontId, currentY, safeHeading.c_str(), true);
       currentY += lineHeight + spacing;
     }
 
     // Draw Body
     if (!safeBody.empty()) {
-      renderer.drawCenteredText(fontId, currentY, safeBody.c_str(), true, EpdFontFamily::REGULAR);
+      renderer.drawCenteredText(fontId, currentY, safeBody.c_str(), true);
     }
 
     // Draw UI Elements

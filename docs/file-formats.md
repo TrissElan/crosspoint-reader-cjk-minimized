@@ -139,9 +139,7 @@ enum StorageType : u8 {
 
 enum WordStyle : u8 {
     REGULAR = 0,
-    BOLD = 1,
-    ITALIC = 2,
-    BOLD_ITALIC = 3
+    UNDERLINE = 1
 };
 
 enum BlockStyle : u8 {

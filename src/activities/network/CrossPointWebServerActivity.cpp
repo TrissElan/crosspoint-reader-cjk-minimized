@@ -236,11 +236,9 @@ void CrossPointWebServerActivity::renderServerRunning() const {
   int startY = metrics.topPadding + metrics.headerHeight + metrics.tabBarHeight + metrics.verticalSpacing * 2;
   int height10 = renderer.getLineHeight(UI_12_FONT_ID);
 
-  renderer.drawText(UI_12_FONT_ID, metrics.contentSidePadding, startY, "Connect your device to", true,
-                    EpdFontFamily::BOLD);
+  renderer.drawText(UI_12_FONT_ID, metrics.contentSidePadding, startY, "Connect your device to", true);
   startY += height10;
-  renderer.drawText(UI_12_FONT_ID, metrics.contentSidePadding, startY, "this WiFi network", true,
-                    EpdFontFamily::BOLD);
+  renderer.drawText(UI_12_FONT_ID, metrics.contentSidePadding, startY, "this WiFi network", true);
   startY += height10 + metrics.verticalSpacing * 2;
 
   // Show QR code for WiFi
@@ -255,8 +253,7 @@ void CrossPointWebServerActivity::renderServerRunning() const {
   startY += QR_CODE_HEIGHT + 2 * metrics.verticalSpacing;
 
   // Show primary URL (hostname)
-  renderer.drawText(UI_12_FONT_ID, metrics.contentSidePadding, startY, tr(STR_OPEN_URL_HINT), true,
-                    EpdFontFamily::BOLD);
+  renderer.drawText(UI_12_FONT_ID, metrics.contentSidePadding, startY, tr(STR_OPEN_URL_HINT), true);
   startY += height10 + metrics.verticalSpacing * 2;
 
   std::string hostnameUrl = std::string("http://") + AP_HOSTNAME + ".local/";

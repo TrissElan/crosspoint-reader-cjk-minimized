@@ -2,7 +2,7 @@
 
 #include <HalGPIO.h>
 #include <Logging.h>
-#include <SdFont.h>
+#include <EmbeddedFont.h>
 #include <Utf8.h>
 
 const uint8_t* GfxRenderer::getGlyphBitmap(const EpdFontData* fontData, const EpdGlyph* glyph) const {
@@ -24,19 +24,19 @@ void GfxRenderer::begin() {
 
 void GfxRenderer::insertFont(const int fontId, EpdFontFamily font) { fontMap.insert({fontId, font}); }
 
-void GfxRenderer::insertSdFont(const int fontId, SdFontFamily* font) {
-  sdFontMap.insert({fontId, font});
+void GfxRenderer::insertEmbeddedFont(const int fontId, EmbeddedFontFamily* font) {
+  embeddedFontMap.insert({fontId, font});
 }
 
 bool GfxRenderer::hasFont(int fontId) const {
-  return sdFontMap.count(fontId) > 0;
+  return embeddedFontMap.count(fontId) > 0;
 }
 
 void GfxRenderer::removeFont(int fontId) {
-  auto it = sdFontMap.find(fontId);
-  if (it != sdFontMap.end()) {
+  auto it = embeddedFontMap.find(fontId);
+  if (it != embeddedFontMap.end()) {
     delete it->second;
-    sdFontMap.erase(it);
+    embeddedFontMap.erase(it);
   }
 }
 
@@ -81,14 +81,14 @@ enum class TextRotation { None, Rotated90CW };
 template <TextRotation rotation>
 static void renderCharImpl(const GfxRenderer& renderer, GfxRenderer::RenderMode renderMode,
                            const EpdFontFamily& fontFamily, const uint32_t cp, int cursorX, int cursorY,
-                           const bool pixelState, const EpdFontFamily::Style style) {
-  const EpdGlyph* glyph = fontFamily.getGlyph(cp, style);
+                           const bool pixelState) {
+  const EpdGlyph* glyph = fontFamily.getGlyph(cp);
   if (!glyph) {
     LOG_ERR("GFX", "No glyph for codepoint %d", cp);
     return;
   }
 
-  const EpdFontData* fontData = fontFamily.getData(style);
+  const EpdFontData* fontData = fontFamily.getData();
   const bool is2Bit = fontData->is2Bit;
   const uint8_t width = glyph->width;
   const uint8_t height = glyph->height;
@@ -170,18 +170,18 @@ static void renderCharImpl(const GfxRenderer& renderer, GfxRenderer::RenderMode 
   }
 }
 
-// SD card font rendering - bitmap loaded on-demand from SD.
-// SD fonts use plain pixel integers for advanceX (no fp4 fixed-point).
-static void renderCharSd(const GfxRenderer& renderer, GfxRenderer::RenderMode renderMode,
-                         const SdFontFamily& fontFamily, const uint32_t cp, const int cursorX, const int cursorY,
-                         const bool pixelState, const EpdFontFamily::Style style) {
-  const EpdGlyph* glyph = fontFamily.getGlyph(cp, style);
+// Embedded font rendering - bitmap loaded on-demand from Flash.
+// Embedded fonts use plain pixel integers for advanceX (no fp4 fixed-point).
+static void renderCharEmbedded(const GfxRenderer& renderer, GfxRenderer::RenderMode renderMode,
+                               const EmbeddedFontFamily& fontFamily, const uint32_t cp, const int cursorX, const int cursorY,
+                               const bool pixelState) {
+  const EpdGlyph* glyph = fontFamily.getGlyph(cp);
   if (!glyph) return;
 
-  const uint8_t* bitmap = fontFamily.getGlyphBitmap(cp, style);
+  const uint8_t* bitmap = fontFamily.getGlyphBitmap(cp);
   if (!bitmap) return;
 
-  const bool is2Bit = fontFamily.is2Bit(style);
+  const bool is2Bit = fontFamily.is2Bit();
   const int outerBase = cursorY - glyph->top;
   const int innerBase = cursorX + glyph->left;
 
@@ -196,7 +196,7 @@ static void renderCharSd(const GfxRenderer& renderer, GfxRenderer::RenderMode re
         const uint8_t bmpVal = 3 - ((byte >> bit_index) & 0x3);
         if (renderMode == GfxRenderer::BW && bmpVal < 3) {
           renderer.drawPixel(screenX, screenY, pixelState);
-        } else if (renderMode == GfxRenderer::GRAYSCALE_MSB && (bmpVal == 1 || (gpio.deviceIsX4() && bmpVal == 2))) {
+        } else if (renderMode == GfxRenderer::GRAYSCALE_MSB && (bmpVal == 1 || bmpVal == 2)) {
           renderer.drawPixel(screenX, screenY, false);
         } else if (renderMode == GfxRenderer::GRAYSCALE_LSB && bmpVal == 1) {
           renderer.drawPixel(screenX, screenY, false);
@@ -245,13 +245,12 @@ void GfxRenderer::drawPixel(const int x, const int y, const bool state) const {
   }
 }
 
-int GfxRenderer::getTextWidth(const int fontId, const char* text, const EpdFontFamily::Style style) const {
-  // Check SD fonts first
+int GfxRenderer::getTextWidth(const int fontId, const char* text) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) {
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) {
       int w = 0, h = 0;
-      sdIt->second->getTextDimensions(text, &w, &h, style);
+      embeddedIt->second->getTextDimensions(text, &w, &h);
       return w;
     }
   }
@@ -263,18 +262,16 @@ int GfxRenderer::getTextWidth(const int fontId, const char* text, const EpdFontF
   }
 
   int w = 0, h = 0;
-  fontIt->second.getTextDimensions(text, &w, &h, style);
+  fontIt->second.getTextDimensions(text, &w, &h);
   return w;
 }
 
-void GfxRenderer::drawCenteredText(const int fontId, const int y, const char* text, const bool black,
-                                   const EpdFontFamily::Style style) const {
-  const int x = (getScreenWidth() - getTextWidth(fontId, text, style)) / 2;
-  drawText(fontId, x, y, text, black, style);
+void GfxRenderer::drawCenteredText(const int fontId, const int y, const char* text, const bool black) const {
+  const int x = (getScreenWidth() - getTextWidth(fontId, text)) / 2;
+  drawText(fontId, x, y, text, black);
 }
 
-void GfxRenderer::drawText(const int fontId, const int x, const int y, const char* text, const bool black,
-                           const EpdFontFamily::Style style) const {
+void GfxRenderer::drawText(const int fontId, const int x, const int y, const char* text, const bool black) const {
   const int yPos = y + getFontAscenderSize(fontId);
   int lastBaseX = x;
   int lastBaseLeft = 0;
@@ -287,18 +284,18 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y, const cha
     return;
   }
 
-  // Pure SD font path (fontId is registered as SD font)
+  // Embedded font path
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) {
-      const SdFontFamily* sdFont = sdIt->second;
-      const int ascender = sdFont->getAscender(style);
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) {
+      const EmbeddedFontFamily* embeddedFont = embeddedIt->second;
+      const int ascender = embeddedFont->getAscender();
       const int yPos = y + ascender;
       int cursorX = x;
       uint32_t cp;
       while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
-        const EpdGlyph* glyph = sdFont->getGlyph(cp, style);
-        renderCharSd(*this, renderMode, *sdFont, cp, cursorX, yPos, black, style);
+        const EpdGlyph* glyph = embeddedFont->getGlyph(cp);
+        renderCharEmbedded(*this, renderMode, *embeddedFont, cp, cursorX, yPos, black);
         cursorX += glyph ? static_cast<int>(glyph->advanceX) : 0;
       }
       return;
@@ -316,18 +313,18 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y, const cha
   uint32_t prevCp = 0;
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
     if (utf8IsCombiningMark(cp)) {
-      const EpdGlyph* combiningGlyph = font.getGlyph(cp, style);
+      const EpdGlyph* combiningGlyph = font.getGlyph(cp);
       if (!combiningGlyph) continue;
       const int raiseBy = combiningMark::raiseAboveBase(combiningGlyph->top, combiningGlyph->height, lastBaseTop);
       const int combiningX = combiningMark::centerOver(lastBaseX, lastBaseLeft, lastBaseWidth, combiningGlyph->left,
                                                        combiningGlyph->width);
-      renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, combiningX, yPos - raiseBy, black, style);
+      renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, combiningX, yPos - raiseBy, black);
       continue;
     }
 
-    cp = font.applyLigatures(cp, text, style);
+    cp = font.applyLigatures(cp, text);
 
-    const EpdGlyph* glyph = font.getGlyph(cp, style);
+    const EpdGlyph* glyph = font.getGlyph(cp);
 
     if (!glyph) {
       // Codepoint not found in flash font — skip
@@ -341,7 +338,7 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y, const cha
 
     // Differential rounding: snap (previous advance + current kern) as one unit
     if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);
+      const auto kernFP = font.getKerning(prevCp, cp);
       lastBaseX += fp4::toPixel(prevAdvanceFP + kernFP);
     }
 
@@ -350,7 +347,7 @@ void GfxRenderer::drawText(const int fontId, const int x, const int y, const cha
     lastBaseTop = glyph ? glyph->top : 0;
     prevAdvanceFP = glyph ? glyph->advanceX : 0;  // 12.4 fixed-point
 
-    renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, lastBaseX, yPos, black, style);
+    renderCharImpl<TextRotation::None>(*this, renderMode, font, cp, lastBaseX, yPos, black);
     prevCp = cp;
   }
 }
@@ -977,20 +974,19 @@ void GfxRenderer::displayBuffer(const HalDisplay::RefreshMode refreshMode) const
   display.displayBuffer(refreshMode, fadingFix);
 }
 
-std::string GfxRenderer::truncatedText(const int fontId, const char* text, const int maxWidth,
-                                       const EpdFontFamily::Style style) const {
+std::string GfxRenderer::truncatedText(const int fontId, const char* text, const int maxWidth) const {
   if (!text || maxWidth <= 0) return "";
 
   std::string item = text;
   // U+2026 HORIZONTAL ELLIPSIS (UTF-8: 0xE2 0x80 0xA6)
   const char* ellipsis = "\xe2\x80\xa6";
-  int textWidth = getTextWidth(fontId, item.c_str(), style);
+  int textWidth = getTextWidth(fontId, item.c_str());
   if (textWidth <= maxWidth) {
     // Text fits, return as is
     return item;
   }
 
-  while (!item.empty() && getTextWidth(fontId, (item + ellipsis).c_str(), style) >= maxWidth) {
+  while (!item.empty() && getTextWidth(fontId, (item + ellipsis).c_str()) >= maxWidth) {
     utf8RemoveLastChar(item);
   }
 
@@ -998,7 +994,7 @@ std::string GfxRenderer::truncatedText(const int fontId, const char* text, const
 }
 
 std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* text, const int maxWidth,
-                                                  const int maxLines, const EpdFontFamily::Style style) const {
+                                                  const int maxLines) const {
   std::vector<std::string> lines;
 
   if (!text || maxWidth <= 0 || maxLines <= 0) return lines;
@@ -1011,7 +1007,7 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
       // Last available line: combine any word already started on this line with
       // the rest of the text, then let truncatedText fit it with an ellipsis.
       std::string lastContent = currentLine.empty() ? remaining : currentLine + " " + remaining;
-      lines.push_back(truncatedText(fontId, lastContent.c_str(), maxWidth, style));
+      lines.push_back(truncatedText(fontId, lastContent.c_str(), maxWidth));
       return lines;
     }
 
@@ -1029,7 +1025,7 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
 
     std::string testLine = currentLine.empty() ? word : currentLine + " " + word;
 
-    if (getTextWidth(fontId, testLine.c_str(), style) <= maxWidth) {
+    if (getTextWidth(fontId, testLine.c_str()) <= maxWidth) {
       currentLine = testLine;
     } else {
       if (!currentLine.empty()) {
@@ -1037,8 +1033,8 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
         // If the carried-over word itself exceeds maxWidth, truncate it and
         // push it as a complete line immediately — storing it in currentLine
         // would allow a subsequent short word to be appended after the ellipsis.
-        if (getTextWidth(fontId, word.c_str(), style) > maxWidth) {
-          lines.push_back(truncatedText(fontId, word.c_str(), maxWidth, style));
+        if (getTextWidth(fontId, word.c_str()) > maxWidth) {
+          lines.push_back(truncatedText(fontId, word.c_str(), maxWidth));
           currentLine.clear();
           if (static_cast<int>(lines.size()) >= maxLines) return lines;
         } else {
@@ -1048,7 +1044,7 @@ std::vector<std::string> GfxRenderer::wrappedText(const int fontId, const char* 
         // Single word wider than maxWidth: truncate and stop to avoid complicated
         // splitting rules (different between languages). Results in an aesthetically
         // pleasing end.
-        lines.push_back(truncatedText(fontId, word.c_str(), maxWidth, style));
+        lines.push_back(truncatedText(fontId, word.c_str(), maxWidth));
         return lines;
       }
     }
@@ -1090,12 +1086,11 @@ int GfxRenderer::getScreenHeight() const {
   return panelWidth;
 }
 
-int GfxRenderer::getSpaceWidth(const int fontId, const EpdFontFamily::Style style) const {
-  // SD font path
+int GfxRenderer::getSpaceWidth(const int fontId) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) {
-      const EpdGlyph* spaceGlyph = sdIt->second->getGlyph(' ', style);
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) {
+      const EpdGlyph* spaceGlyph = embeddedIt->second->getGlyph(' ');
       return spaceGlyph ? static_cast<int>(spaceGlyph->advanceX) : 0;
     }
   }
@@ -1105,56 +1100,51 @@ int GfxRenderer::getSpaceWidth(const int fontId, const EpdFontFamily::Style styl
     return 0;
   }
 
-  const EpdGlyph* spaceGlyph = fontIt->second.getGlyph(' ', style);
+  const EpdGlyph* spaceGlyph = fontIt->second.getGlyph(' ');
   return spaceGlyph ? fp4::toPixel(spaceGlyph->advanceX) : 0;  // snap 12.4 fixed-point to nearest pixel
 }
 
-int GfxRenderer::getSpaceAdvance(const int fontId, const uint32_t leftCp, const uint32_t rightCp,
-                                 const EpdFontFamily::Style style) const {
-  // SD fonts: no kerning data, just return space advance
+int GfxRenderer::getSpaceAdvance(const int fontId, const uint32_t leftCp, const uint32_t rightCp) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) {
-      const EpdGlyph* spaceGlyph = sdIt->second->getGlyph(' ', style);
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) {
+      const EpdGlyph* spaceGlyph = embeddedIt->second->getGlyph(' ');
       return spaceGlyph ? static_cast<int>(spaceGlyph->advanceX) : 0;
     }
   }
   const auto fontIt = fontMap.find(fontId);
   if (fontIt == fontMap.end()) return 0;
   const auto& font = fontIt->second;
-  const EpdGlyph* spaceGlyph = font.getGlyph(' ', style);
+  const EpdGlyph* spaceGlyph = font.getGlyph(' ');
   const int32_t spaceAdvanceFP = spaceGlyph ? static_cast<int32_t>(spaceGlyph->advanceX) : 0;
   // Combine space advance + flanking kern into one fixed-point sum before snapping.
   // Snapping the combined value avoids the +/-1 px error from snapping each component separately.
-  const int32_t kernFP = static_cast<int32_t>(font.getKerning(leftCp, ' ', style)) +
-                         static_cast<int32_t>(font.getKerning(' ', rightCp, style));
+  const int32_t kernFP = static_cast<int32_t>(font.getKerning(leftCp, ' ')) +
+                         static_cast<int32_t>(font.getKerning(' ', rightCp));
   return fp4::toPixel(spaceAdvanceFP + kernFP);
 }
 
-int GfxRenderer::getKerning(const int fontId, const uint32_t leftCp, const uint32_t rightCp,
-                            const EpdFontFamily::Style style) const {
-  // SD fonts don't have kerning data
+int GfxRenderer::getKerning(const int fontId, const uint32_t leftCp, const uint32_t rightCp) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) return 0;
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) return 0;
   }
   const auto fontIt = fontMap.find(fontId);
   if (fontIt == fontMap.end()) return 0;
-  const int kernFP = fontIt->second.getKerning(leftCp, rightCp, style);  // 4.4 fixed-point
-  return fp4::toPixel(kernFP);                                           // snap 4.4 fixed-point to nearest pixel
+  const int kernFP = fontIt->second.getKerning(leftCp, rightCp);  // 4.4 fixed-point
+  return fp4::toPixel(kernFP);                                    // snap 4.4 fixed-point to nearest pixel
 }
 
-int GfxRenderer::getTextAdvanceX(const int fontId, const char* text, EpdFontFamily::Style style) const {
-  // SD font path: sum individual glyph advances (no kerning/ligatures)
+int GfxRenderer::getTextAdvanceX(const int fontId, const char* text) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) {
-      const SdFontFamily* sdFont = sdIt->second;
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) {
+      const EmbeddedFontFamily* embeddedFont = embeddedIt->second;
       int totalWidth = 0;
       uint32_t cp;
       while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
         if (utf8IsCombiningMark(cp)) continue;
-        const EpdGlyph* glyph = sdFont->getGlyph(cp, style);
+        const EpdGlyph* glyph = embeddedFont->getGlyph(cp);
         totalWidth += glyph ? static_cast<int>(glyph->advanceX) : 0;
       }
       return totalWidth;
@@ -1175,16 +1165,16 @@ int GfxRenderer::getTextAdvanceX(const int fontId, const char* text, EpdFontFami
     if (utf8IsCombiningMark(cp)) {
       continue;
     }
-    cp = font.applyLigatures(cp, text, style);
+    cp = font.applyLigatures(cp, text);
 
     // Differential rounding: snap (previous advance + current kern) together,
     // matching drawText so measurement and rendering agree exactly.
     if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
-      widthPx += fp4::toPixel(prevAdvanceFP + kernFP);         // snap 12.4 fixed-point to nearest pixel
+      const auto kernFP = font.getKerning(prevCp, cp);    // 4.4 fixed-point kern
+      widthPx += fp4::toPixel(prevAdvanceFP + kernFP);    // snap 12.4 fixed-point to nearest pixel
     }
 
-    const EpdGlyph* glyph = font.getGlyph(cp, style);
+    const EpdGlyph* glyph = font.getGlyph(cp);
     prevAdvanceFP = glyph ? glyph->advanceX : 0;
     prevCp = cp;
   }
@@ -1194,8 +1184,8 @@ int GfxRenderer::getTextAdvanceX(const int fontId, const char* text, EpdFontFami
 
 int GfxRenderer::getFontAscenderSize(const int fontId) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) return sdIt->second->getAscender();
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) return embeddedIt->second->getAscender();
   }
   const auto fontIt = fontMap.find(fontId);
   if (fontIt == fontMap.end()) {
@@ -1203,13 +1193,13 @@ int GfxRenderer::getFontAscenderSize(const int fontId) const {
     return 0;
   }
 
-  return fontIt->second.getData(EpdFontFamily::REGULAR)->ascender;
+  return fontIt->second.getData()->ascender;
 }
 
 int GfxRenderer::getLineHeight(const int fontId) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) return sdIt->second->getAdvanceY();
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) return embeddedIt->second->getAdvanceY();
   }
   const auto fontIt = fontMap.find(fontId);
   if (fontIt == fontMap.end()) {
@@ -1217,24 +1207,24 @@ int GfxRenderer::getLineHeight(const int fontId) const {
     return 0;
   }
 
-  return fontIt->second.getData(EpdFontFamily::REGULAR)->advanceY;
+  return fontIt->second.getData()->advanceY;
 }
 
 int GfxRenderer::getTextHeight(const int fontId) const {
   {
-    const auto sdIt = sdFontMap.find(fontId);
-    if (sdIt != sdFontMap.end()) return sdIt->second->getAscender();
+    const auto embeddedIt = embeddedFontMap.find(fontId);
+    if (embeddedIt != embeddedFontMap.end()) return embeddedIt->second->getAscender();
   }
   const auto fontIt = fontMap.find(fontId);
   if (fontIt == fontMap.end()) {
     LOG_ERR("GFX", "Font %d not found", fontId);
     return 0;
   }
-  return fontIt->second.getData(EpdFontFamily::REGULAR)->ascender;
+  return fontIt->second.getData()->ascender;
 }
 
-void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y, const char* text, const bool black,
-                                      const EpdFontFamily::Style style) const {
+void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y, const char* text,
+                                      const bool black) const {
   // Cannot draw a NULL / empty string
   if (text == nullptr || *text == '\0') {
     return;
@@ -1258,33 +1248,33 @@ void GfxRenderer::drawTextRotated90CW(const int fontId, const int x, const int y
   uint32_t prevCp = 0;
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&text)))) {
     if (utf8IsCombiningMark(cp)) {
-      const EpdGlyph* combiningGlyph = font.getGlyph(cp, style);
+      const EpdGlyph* combiningGlyph = font.getGlyph(cp);
       if (!combiningGlyph) continue;
       const int raiseBy = combiningMark::raiseAboveBase(combiningGlyph->top, combiningGlyph->height, lastBaseTop);
       const int combiningX = x - raiseBy;
       const int combiningY = combiningMark::centerOverRotated90CW(lastBaseY, lastBaseLeft, lastBaseWidth,
                                                                   combiningGlyph->left, combiningGlyph->width);
-      renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, combiningX, combiningY, black, style);
+      renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, combiningX, combiningY, black);
       continue;
     }
 
-    cp = font.applyLigatures(cp, text, style);
+    cp = font.applyLigatures(cp, text);
 
     // Differential rounding: snap (previous advance + current kern) as one unit,
     // subtracting for the rotated coordinate direction.
     if (prevCp != 0) {
-      const auto kernFP = font.getKerning(prevCp, cp, style);  // 4.4 fixed-point kern
-      lastBaseY -= fp4::toPixel(prevAdvanceFP + kernFP);       // snap 12.4 fixed-point to nearest pixel
+      const auto kernFP = font.getKerning(prevCp, cp);    // 4.4 fixed-point kern
+      lastBaseY -= fp4::toPixel(prevAdvanceFP + kernFP);  // snap 12.4 fixed-point to nearest pixel
     }
 
-    const EpdGlyph* glyph = font.getGlyph(cp, style);
+    const EpdGlyph* glyph = font.getGlyph(cp);
 
     lastBaseLeft = glyph ? glyph->left : 0;
     lastBaseWidth = glyph ? glyph->width : 0;
     lastBaseTop = glyph ? glyph->top : 0;
     prevAdvanceFP = glyph ? glyph->advanceX : 0;  // 12.4 fixed-point
 
-    renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, x, lastBaseY, black, style);
+    renderCharImpl<TextRotation::Rotated90CW>(*this, renderMode, font, cp, x, lastBaseY, black);
     prevCp = cp;
   }
 }

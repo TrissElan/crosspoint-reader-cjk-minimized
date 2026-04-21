@@ -9,8 +9,8 @@
 #include <I18n.h>
 #include <Logging.h>
 #include <SPI.h>
-#include <SdFont.h>
-#include <SdFontFamily.h>
+#include <EmbeddedFont.h>
+#include <EmbeddedFontFamily.h>
 #include <builtinFonts/all.h>
 
 #include <cstring>
@@ -45,19 +45,19 @@ extern const uint8_t _binary_kopub_12_epdfont_end[];
 extern const uint8_t _binary_kopub_14_epdfont_start[];
 extern const uint8_t _binary_kopub_14_epdfont_end[];
 
-// Global SdFont / SdFontFamily for each embedded size.
-SdFont* gCjkFont10 = nullptr;
-SdFontFamily* gCjkFontFamily10 = nullptr;
-SdFont* gCjkFont12 = nullptr;
-SdFontFamily* gCjkFontFamily12 = nullptr;
-SdFont* gCjkFont14 = nullptr;
-SdFontFamily* gCjkFontFamily14 = nullptr;
-SdFont* gKopubFont10 = nullptr;
-SdFontFamily* gKopubFontFamily10 = nullptr;
-SdFont* gKopubFont12 = nullptr;
-SdFontFamily* gKopubFontFamily12 = nullptr;
-SdFont* gKopubFont14 = nullptr;
-SdFontFamily* gKopubFontFamily14 = nullptr;
+// Global EmbeddedFont / EmbeddedFontFamily for each embedded size.
+EmbeddedFont* gCjkFont10 = nullptr;
+EmbeddedFontFamily* gCjkFontFamily10 = nullptr;
+EmbeddedFont* gCjkFont12 = nullptr;
+EmbeddedFontFamily* gCjkFontFamily12 = nullptr;
+EmbeddedFont* gCjkFont14 = nullptr;
+EmbeddedFontFamily* gCjkFontFamily14 = nullptr;
+EmbeddedFont* gKopubFont10 = nullptr;
+EmbeddedFontFamily* gKopubFontFamily10 = nullptr;
+EmbeddedFont* gKopubFont12 = nullptr;
+EmbeddedFontFamily* gKopubFontFamily12 = nullptr;
+EmbeddedFont* gKopubFont14 = nullptr;
+EmbeddedFontFamily* gKopubFontFamily14 = nullptr;
 
 void waitForPowerRelease() {
   gpio.update();
@@ -89,16 +89,16 @@ void setupDisplayAndFonts() {
 
   // Load embedded fonts (2-bit) from Flash — zero-copy, no interval RAM allocation
   auto loadEmbeddedFont = [](const uint8_t* start, const uint8_t* end,
-                              SdFont*& font, SdFontFamily*& family,
+                              EmbeddedFont*& font, EmbeddedFontFamily*& family,
                               int fontId, const char* label) {
     size_t sz = end - start;
-    font = new SdFont(start, sz);
+    font = new EmbeddedFont(start, sz);
     if (!font->load()) {
       LOG_ERR("MAIN", "Failed to load embedded %s", label);
       return;
     }
-    family = new SdFontFamily(font);
-    renderer.insertSdFont(fontId, family);
+    family = new EmbeddedFontFamily(font);
+    renderer.insertEmbeddedFont(fontId, family);
   };
 
   loadEmbeddedFont(_binary_pretendard_10_epdfont_start, _binary_pretendard_10_epdfont_end,
@@ -140,7 +140,7 @@ void setup() {
   if (!Storage.begin()) {
     LOG_ERR("MAIN", "SD card initialization failed");
     setupDisplayAndFonts();
-    activityManager.goToFullScreenMessage("SD card error", EpdFontFamily::BOLD);
+    activityManager.goToFullScreenMessage("SD card error");
     return;
   }
 

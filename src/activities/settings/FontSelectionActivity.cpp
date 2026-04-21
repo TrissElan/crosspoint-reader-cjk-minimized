@@ -202,7 +202,7 @@ void FontSelectionActivity::doRender() {
   auto drawContent = [&]() {
     renderer.clearScreen();
 
-    renderer.drawCenteredText(UI_12_FONT_ID, 15, "Font Selection", true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(UI_12_FONT_ID, 15, "Font Selection", true);
 
     constexpr int lineHeight = 30;
     constexpr int startY = 60;
