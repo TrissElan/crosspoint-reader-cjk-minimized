@@ -71,18 +71,18 @@ python generate_cjk_font.py <font_file> 10 12  # specific sizes only
 
 Source font files go in `lib/EpdFont/builtinFonts/source/`.
 
-## Credits
+# Credits
 
 - Original project: [CrossPoint Reader](https://github.com/crosspoint-reader/crosspoint-reader)
 - Referenced: [crosspoint-reader-ko](https://github.com/crosspoint-reader-ko/crosspoint-reader-ko) - font-path hash-based cache invalidation, SD font architecture patterns
-- CJK fork by: TrissElan
+- fork by: TrissElan
 
-## Support
+# Support
 
 If you find this project useful, please consider supporting it.
 
 [![donate](https://example.com/buy-me-a-coffee.png)](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=WFXTNDJ3LYB2U)
 
-## License
+# License
 
-This project is licensed under the same license as the original CrossPoint Reader project.
+This project is licensed under the same license as the original project.
