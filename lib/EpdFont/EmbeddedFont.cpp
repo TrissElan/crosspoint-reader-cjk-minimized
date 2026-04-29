@@ -231,9 +231,6 @@ void EmbeddedFont::getTextDimensions(const char* string, int* w, int* h) const {
   while ((cp = utf8NextCodepoint(reinterpret_cast<const uint8_t**>(&string)))) {
     const EpdGlyph* glyph = data->getGlyph(cp);
     if (!glyph) {
-      glyph = data->getGlyph('?');
-    }
-    if (!glyph) {
       continue;
     }
 
